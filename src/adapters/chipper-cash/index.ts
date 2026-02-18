@@ -572,12 +572,13 @@ export class ChipperCashAdapter implements PaymentProvider {
       );
 
       const data = response.data;
+      const status = data.status === 'completed' ? 'refunded' : this.mapChipperCashStatus(data.status);
 
       return {
         id,
         providerTransactionId: data.id,
         provider: this.name,
-        status: this.mapChipperCashStatus(data.status),
+        status,
         amount: params.amount || { amount: 0, currency: 'USD' },
         customer: {},
         description: `Refund: ${params.reason || 'Customer request'}`,
