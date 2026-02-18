@@ -13,7 +13,7 @@ import { createServer } from './server.js';
 import { ConfigManager } from './utils/config.js';
 import { Logger } from './utils/logger.js';
 
-const program = new Command();
+export const program = new Command();
 
 // Helper for user input
 function askQuestion(rl: readline.Interface, question: string): Promise<string> {
@@ -190,13 +190,13 @@ program
         console.log(`   Log Level: ${config.server?.logLevel || 'info'}`);
 
         console.log('\n📱 Provider Details:');
-        for (const [name, provider]: [string, any] of Object.entries(config.providers)) {
+        for (const [name, provider] of Object.entries(config.providers) as [string, any][]) {
           const status = provider.enabled ? '✅ Enabled' : '❌ Disabled';
           const env = provider.environment || 'not set';
           console.log(`   ${name}: ${status} (${env})`);
           
           if (provider.enabled && options.verbose) {
-            const hasCreds = provider.consumerKey || provider.secretKey || provider.apiKey;
+            const hasCreds = provider.consumerKey || provider.secretKey || (provider as any).apiKey || (provider as any).token;
             console.log(`      Credentials: ${hasCreds ? '✅ Present' : '⚠️ Missing'}`);
           }
         }

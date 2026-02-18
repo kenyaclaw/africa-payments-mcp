@@ -1013,14 +1013,15 @@ export class ToolManager {
   }
 
   private formatTransactionResponse(transaction: any, title: string): string {
-    const statusEmoji = {
+    const statusMap: Record<string, string> = {
       completed: '✅',
       pending: '⏳',
       processing: '🔄',
       failed: '❌',
       cancelled: '🚫',
       refunded: '↩️',
-    }[transaction.status] || '❓';
+    };
+    const statusEmoji = statusMap[transaction.status as string] || '❓';
 
     return `
 ${statusEmoji} ${title}
@@ -1045,14 +1046,15 @@ ${transaction.failureReason ? `❌ Error: ${transaction.failureReason}` : ''}
     let text = `📋 Transactions (${transactions.length} found)\n\n`;
 
     for (const tx of transactions.slice(0, 20)) {
-      const statusEmoji = {
+      const statusMap: Record<string, string> = {
         completed: '✅',
         pending: '⏳',
         processing: '🔄',
         failed: '❌',
         cancelled: '🚫',
         refunded: '↩️',
-      }[tx.status] || '❓';
+      };
+      const statusEmoji = statusMap[tx.status as string] || '❓';
 
       text += `${statusEmoji} ${tx.id.substring(0, 12)}... | ${tx.amount.amount} ${tx.amount.currency} | ${tx.status}\n`;
     }

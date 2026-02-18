@@ -124,8 +124,8 @@ export class AfricaPaymentsMCPServer {
       this.logger.debug(`Arguments: ${JSON.stringify(args)}`);
 
       try {
-        const result = await this.toolManager.executeTool(name, args);
-        return result;
+        const result = await this.toolManager.executeTool(name, args || {});
+        return result as any;
       } catch (error) {
         this.logger.error(`Tool execution failed: ${error}`);
         

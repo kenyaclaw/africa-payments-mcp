@@ -19,7 +19,7 @@ import {
   RateLimiter,
   isValidIP,
   getSecurityHeaders,
-} from '../utils/security';
+} from '../utils/security.js';
 
 // ============================================================================
 // IP Whitelist Middleware
@@ -386,15 +386,10 @@ export function createHelmetMiddleware() {
         frameSrc: ["'none'"],
       },
     },
-    crossOriginEmbedderPolicy: false, // May need to adjust based on requirements
-    crossOriginOpenerPolicy: { policy: 'same-origin' },
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin' as any },
+    crossOriginResourcePolicy: { policy: 'cross-origin' as any },
     dnsPrefetchControl: { allow: false },
-    expectCt: {
-      maxAge: 86400,
-      enforce: true,
-    },
-    frameguard: { action: 'deny' },
+    // expectCt removed - deprecated in Helmet v7+
     hidePoweredBy: true,
     hsts: {
       maxAge: 31536000,
