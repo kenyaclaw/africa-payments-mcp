@@ -1,25 +1,8 @@
 /**
  * Jest Test Setup
  * 
- * Global test configuration and mocks
+ * Global test configuration and utilities
  */
-
-import { jest, beforeAll, afterAll, afterEach } from '@jest/globals';
-
-// Mock axios globally
-jest.mock('axios', () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(() => ({
-      get: jest.fn(),
-      post: jest.fn(),
-      interceptors: {
-        request: { use: jest.fn() },
-        response: { use: jest.fn() },
-      },
-    })),
-  },
-}));
 
 // Mock console methods to reduce noise during tests
 const originalConsoleLog = console.log;

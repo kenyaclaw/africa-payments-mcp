@@ -4,7 +4,24 @@
  * Test suite for the ProviderRegistry utility.
  */
 
-import { jest, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+
+// Mock axios before imports
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: jest.fn(() => ({
+      get: jest.fn(),
+      post: jest.fn(),
+      interceptors: {
+        request: { use: jest.fn(), eject: jest.fn() },
+        response: { use: jest.fn(), eject: jest.fn() },
+      },
+    })),
+  },
+}));
+
+import axios from 'axios';
 import { ProviderRegistry } from '../../src/utils/registry.js';
 import { Logger } from '../../src/utils/logger.js';
 import { MpesaAdapter } from '../../src/adapters/mpesa/index.js';
@@ -188,28 +205,27 @@ describe('ProviderRegistry', () => {
     });
 
     it('should continue if one provider fails', async () => {
-      const mpesaAdapter = new MpesaAdapter({
-        enabled: true,
-        environment: 'sandbox',
-        consumerKey: 'test',
-        consumerSecret: 'test',
-        passkey: 'test',
-        shortCode: '123456',
-      });
+      // Create a mock adapter that succeeds
+      const successAdapter = {
+        name: 'success-provider',
+        initialize: jest.fn().mockResolvedValue(undefined),
+      } as any;
 
-      const failingAdapter = new PaystackAdapter({
-        enabled: true,
-        environment: 'sandbox',
-        secretKey: 'invalid_key',
-      });
+      // Create a mock adapter that fails
+      const failingAdapter = {
+        name: 'failing-provider',
+        initialize: jest.fn().mockRejectedValue(new Error('Initialization failed')),
+      } as any;
 
-      registry.register('mpesa', mpesaAdapter);
-      registry.register('paystack', failingAdapter);
+      registry.register('success', successAdapter);
+      registry.register('failing', failingAdapter);
 
       await registry.initializeAll();
 
+      // Success provider should remain, failing should be removed
       expect(registry.getProviderCount()).toBe(1);
-      expect(registry.getProvider('mpesa')).toBeDefined();
+      expect(registry.getProvider('success')).toBeDefined();
+      expect(registry.getProvider('failing')).toBeUndefined();
     });
   });
 });

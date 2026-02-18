@@ -105,7 +105,8 @@
         },
         "currency": "NGN",
         "amount": 500000,
-        "status": "processed",
+        "status": "success",
+        "refund_reference": "REF_test_full",
         "refunded_at": "2026-01-15T15:00:00.000Z",
         "refunded_by": "admin@example.com"
       }
@@ -121,7 +122,8 @@
         },
         "currency": "NGN",
         "amount": 250000,
-        "status": "processed"
+        "status": "success",
+        "refund_reference": "REF_test_partial"
       }
     }
   },
