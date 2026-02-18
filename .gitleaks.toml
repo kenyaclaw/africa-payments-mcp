@@ -1,0 +1,77 @@
+title = "Africa Payments MCP GitLeaks Config"
+
+[extend]
+# Use default config as base
+useDefault = true
+
+[[rules]]
+id = "paystack-secret-key"
+description = "Paystack Secret Key"
+regex = '''sk_(live|test)_[a-zA-Z0-9]{32,}'''
+tags = ["key", "paystack", "secret"]
+
+[[rules]]
+id = "paystack-public-key"
+description = "Paystack Public Key"
+regex = '''pk_(live|test)_[a-zA-Z0-9]{32,}'''
+tags = ["key", "paystack", "public"]
+
+[[rules]]
+id = "mpesa-consumer-key"
+description = "M-Pesa Consumer Key"
+regex = '''(?i)(mpesa_consumer_key|mpesa_consumerkey|consumer_key)[\s]*[=:]+[\s]*["']{0,1}[a-zA-Z0-9]{20,}["']{0,1}'''
+tags = ["key", "mpesa", "safaricom"]
+
+[[rules]]
+id = "mpesa-consumer-secret"
+description = "M-Pesa Consumer Secret"
+regex = '''(?i)(mpesa_consumer_secret|mpesa_consumersecret|consumer_secret)[\s]*[=:]+[\s]*["']{0,1}[a-zA-Z0-9]{20,}["']{0,1}'''
+tags = ["secret", "mpesa", "safaricom"]
+
+[[rules]]
+id = "mpesa-passkey"
+description = "M-Pesa Passkey"
+regex = '''(?i)(mpesa_passkey|mpesa_pass_key|passkey)[\s]*[=:]+[\s]*["']{0,1}[a-zA-Z0-9]{20,}["']{0,1}'''
+tags = ["secret", "mpesa", "safaricom"]
+
+[[rules]]
+id = "webhook-secret"
+description = "Webhook Secret"
+regex = '''(?i)(webhook_secret|webhooksecret)[\s]*[=:]+[\s]*["']{0,1}[a-zA-Z0-9]{16,}["']{0,1}'''
+tags = ["secret", "webhook"]
+
+[[rules]]
+id = "api-key-generic"
+description = "Generic API Key"
+regex = '''(?i)(api_key|apikey|api-key)[\s]*[=:]+[\s]*["']{0,1}[a-zA-Z0-9]{32,}["']{0,1}'''
+tags = ["key", "api"]
+
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret"
+regex = '''(?i)(jwt_secret|jwtsecret)[\s]*[=:]+[\s]*["']{0,1}[a-zA-Z0-9]{16,}["']{0,1}'''
+tags = ["secret", "jwt"]
+
+[allowlist]
+description = "Allowlisted files"
+paths = [
+  '''\.env\.example$''',
+  '''\.env\.sample$''',
+  '''_test\.go$''',
+  '''test.*\.ts$''',
+  '''.*_test\.ts$''',
+  '''test.*\.js$''',
+  '''.*_test\.js$''',
+]
+
+regexes = [
+  # Allow placeholder/example values
+  '''sk_test_xxxxx''',
+  '''sk_live_xxxxx''',
+  '''pk_test_xxxxx''',
+  '''pk_live_xxxxx''',
+  '''xxxxxxxx''',
+  '''your-''',
+  '''example''',
+  '''placeholder''',
+]

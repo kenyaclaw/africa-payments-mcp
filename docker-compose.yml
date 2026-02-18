@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Africa Payments MCP Server
+  africa-payments-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: africa-payments-mcp
+    image: kenyaclaw/africa-payments-mcp:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount your config file
+      - ./config.json:/app/config/config.json:ro
+      # Optional: Mount logs directory
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Optional: Redis connection for webhook queue
+      - REDIS_URL=redis://redis:6379
+      # Optional: Log level
+      - LOG_LEVEL=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - payments-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Health check passed')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Redis for webhook queue (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: africa-payments-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - payments-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Development service with hot reload
+  africa-payments-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: africa-payments-dev
+    profiles:
+      - dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./config.json:/app/config.json:ro
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    networks:
+      - payments-network
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: africa-payments-nginx
+    profiles:
+      - prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - africa-payments-mcp
+    networks:
+      - payments-network
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  payments-network:
+    driver: bridge

@@ -1,0 +1,23 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged (linting and formatting)
+echo "📝 Running lint-staged..."
+npx lint-staged
+
+# Run tests for staged files only
+echo "🧪 Running tests..."
+npm run test:staged
+
+# Check for secrets in staged files
+echo "🔒 Checking for secrets..."
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks protect --staged --verbose
+else
+    echo "⚠️  gitleaks not installed, skipping secret detection"
+    echo "   Install with: brew install gitleaks"
+fi
+
+echo "✅ Pre-commit checks passed!"

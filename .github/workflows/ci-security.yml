@@ -1,0 +1,174 @@
+name: CI with Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ============================================================================
+  # Build and Test
+  # ============================================================================
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security-focused linting
+        run: |
+          if [ -f .eslintrc.js ] || [ -f .eslintrc.json ] || [ -f .eslintrc.yml ]; then
+            npx eslint src/ --ext .ts,.js
+          fi
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+
+  # ============================================================================
+  # Security Checks
+  # ============================================================================
+  security-checks:
+    name: Security Verification
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for high severity vulnerabilities
+        run: |
+          npm audit --audit-level=high --json > audit-results.json || true
+          high_vulns=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
+          critical_vulns=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
+          
+          echo "Vulnerabilities found:"
+          echo "  High: $high_vulns"
+          echo "  Critical: $critical_vulns"
+          
+          if [ "$critical_vulns" -gt 0 ] || [ "$high_vulns" -gt 5 ]; then
+            echo "❌ Too many high/critical vulnerabilities"
+            exit 1
+          fi
+
+      - name: Verify security utilities exist
+        run: |
+          if [ ! -f "src/utils/security.ts" ]; then
+            echo "❌ Security utilities not found"
+            exit 1
+          fi
+          
+          if [ ! -f "src/middleware/security.ts" ]; then
+            echo "❌ Security middleware not found"
+            exit 1
+          fi
+          
+          echo "✅ Security modules verified"
+
+      - name: Check for console.log statements
+        run: |
+          # Allow console.error for logging, but warn on console.log
+          log_count=$(grep -r "console\.log" --include="*.ts" --include="*.js" src/ 2>/dev/null | wc -l || echo "0")
+          
+          if [ "$log_count" -gt 10 ]; then
+            echo "⚠️  Warning: Found $log_count console.log statements. Consider using a proper logger."
+          fi
+
+      - name: Verify security tests exist
+        run: |
+          security_test_count=$(find . -name "*.test.ts" -o -name "*.spec.ts" | xargs grep -l "security\|signature\|mask\|sanitize" 2>/dev/null | wc -l || echo "0")
+          
+          if [ "$security_test_count" -eq 0 ]; then
+            echo "⚠️  Warning: No security-specific tests found"
+          else
+            echo "✅ Found $security_test_count test files with security tests"
+          fi
+
+  # ============================================================================
+  # Container Security (if Dockerfile exists)
+  # ============================================================================
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: hashFiles('Dockerfile') != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t africa-payments-mcp:security-scan .
+
+      - name: Run Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'africa-payments-mcp:security-scan'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Dockle
+        uses: goodwithtech/dockle-action@v0.1.2
+        with:
+          image: 'africa-payments-mcp:security-scan'
+          exit-code: '0'
+          exit-level: 'WARN'
+
+  # ============================================================================
+  # License Compliance
+  # ============================================================================
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: |
+          npm install -g license-checker
+          license-checker --production --onlyAllow 'MIT;Apache-2.0;BSD-3-Clause;BSD-2-Clause;ISC;0BSD;Python-2.0' --json > licenses.json || true
+          
+          # Check for forbidden licenses
+          forbidden=$(license-checker --production --json | jq -r '.[] | select(.licenses | contains("GPL") or contains("AGPL") or contains("LGPL")) | .name' 2>/dev/null || echo "")
+          
+          if [ -n "$forbidden" ]; then
+            echo "⚠️  Warning: Found potentially restrictive licenses:"
+            echo "$forbidden"
+          fi

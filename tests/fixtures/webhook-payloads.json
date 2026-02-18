@@ -1,0 +1,279 @@
+{
+  "paystack": {
+    "chargeSuccess": {
+      "event": "charge.success",
+      "data": {
+        "id": 123456789,
+        "domain": "test",
+        "status": "success",
+        "reference": "PS_20260115143000_abc123",
+        "amount": 500000,
+        "message": null,
+        "gateway_response": "Successful",
+        "paid_at": "2026-01-15T14:30:00.000Z",
+        "created_at": "2026-01-15T14:25:00.000Z",
+        "channel": "card",
+        "currency": "NGN",
+        "ip_address": "127.0.0.1",
+        "metadata": {
+          "order_id": "ORDER_123"
+        },
+        "fees": 7500,
+        "customer": {
+          "id": 123456,
+          "first_name": "John",
+          "last_name": "Doe",
+          "email": "john.doe@example.com",
+          "customer_code": "CUS_test123",
+          "phone": "+2348012345678"
+        },
+        "authorization": {
+          "authorization_code": "AUTH_test123",
+          "bin": "408408",
+          "last4": "4081",
+          "exp_month": "12",
+          "exp_year": "2026",
+          "channel": "card",
+          "card_type": "visa",
+          "bank": "Test Bank",
+          "country_code": "NG",
+          "brand": "visa",
+          "reusable": true,
+          "signature": "SIG_test123"
+        }
+      }
+    },
+    "transferSuccess": {
+      "event": "transfer.success",
+      "data": {
+        "reference": "TRF_20260115143000_xyz789",
+        "integration": 123456,
+        "domain": "test",
+        "amount": 100000,
+        "currency": "NGN",
+        "source": "balance",
+        "reason": "Payment for services",
+        "recipient": {
+          "domain": "test",
+          "type": "nuban",
+          "currency": "NGN",
+          "name": "John Doe",
+          "account_number": "0123456789",
+          "bank_code": "044",
+          "bank_name": "Access Bank",
+          "description": "Customer payout"
+        },
+        "status": "success",
+        "transfer_code": "TRF_test123",
+        "transferred_at": "2026-01-15T14:31:00.000Z"
+      }
+    },
+    "transferFailed": {
+      "event": "transfer.failed",
+      "data": {
+        "reference": "TRF_20260115143000_xyz789",
+        "amount": 100000,
+        "currency": "NGN",
+        "reason": "Payment for services",
+        "recipient": {
+          "name": "John Doe",
+          "account_number": "0123456789",
+          "bank_code": "044",
+          "bank_name": "Access Bank"
+        },
+        "status": "failed",
+        "transfer_code": "TRF_test123",
+        "failures": {
+          "recipient": ["Invalid account number"]
+        }
+      }
+    },
+    "refundProcessed": {
+      "event": "refund.processed",
+      "data": {
+        "transaction": {
+          "id": 123456789,
+          "reference": "PS_20260115143000_abc123",
+          "amount": 500000
+        },
+        "currency": "NGN",
+        "amount": 500000,
+        "status": "processed",
+        "refunded_at": "2026-01-15T15:00:00.000Z"
+      }
+    },
+    "subscriptionCreate": {
+      "event": "subscription.create",
+      "data": {
+        "id": 12345,
+        "customer": {
+          "id": 123456,
+          "email": "john.doe@example.com"
+        },
+        "plan": {
+          "id": 54321,
+          "name": "Premium Plan",
+          "amount": 500000,
+          "currency": "NGN"
+        },
+        "subscription_code": "SUB_test123",
+        "status": "active",
+        "quantity": 1,
+        "amount": 500000,
+        "created_at": "2026-01-15T14:30:00.000Z"
+      }
+    }
+  },
+  "mpesa": {
+    "stkPushSuccess": {
+      "Body": {
+        "stkCallback": {
+          "MerchantRequestID": "test-merchant-request-id",
+          "CheckoutRequestID": "ws_CO_170720210012345678",
+          "ResultCode": 0,
+          "ResultDesc": "The service request is processed successfully.",
+          "CallbackMetadata": {
+            "Item": [
+              { "Name": "Amount", "Value": 1000 },
+              { "Name": "MpesaReceiptNumber", "Value": "TEST123456" },
+              { "Name": "Balance" },
+              { "Name": "TransactionDate", "Value": 20260115143000 },
+              { "Name": "PhoneNumber", "Value": 254712345678 }
+            ]
+          }
+        }
+      }
+    },
+    "stkPushCancelled": {
+      "Body": {
+        "stkCallback": {
+          "MerchantRequestID": "test-merchant-request-id",
+          "CheckoutRequestID": "ws_CO_170720210012345678",
+          "ResultCode": 1032,
+          "ResultDesc": "Request cancelled by user"
+        }
+      }
+    },
+    "stkPushInsufficient": {
+      "Body": {
+        "stkCallback": {
+          "MerchantRequestID": "test-merchant-request-id",
+          "CheckoutRequestID": "ws_CO_170720210012345678",
+          "ResultCode": 1,
+          "ResultDesc": "The balance is insufficient for the transaction"
+        }
+      }
+    },
+    "b2cSuccess": {
+      "Result": {
+        "ResultType": 0,
+        "ResultCode": 0,
+        "ResultDesc": "The service request is processed successfully.",
+        "OriginatorConversationID": "test-originator-id",
+        "ConversationID": "AG_20240115_1234567890abcdef",
+        "TransactionID": "test-transaction-id",
+        "ResultParameters": {
+          "ResultParameter": [
+            { "Key": "TransactionReceipt", "Value": "TEST123456" },
+            { "Key": "TransactionAmount", "Value": 1000 },
+            { "Key": "B2CWorkingAccountAvailableFunds", "Value": 200000 },
+            { "Key": "B2CUtilityAccountAvailableFunds", "Value": 100000 },
+            { "Key": "TransactionCompletedDateTime", "Value": "16.02.2026 14:30:00" },
+            { "Key": "ReceiverPartyPublicName", "Value": "John Doe - 254712345678" },
+            { "Key": "B2CChargesPaidAccountAvailableFunds", "Value": 50000 },
+            { "Key": "B2CRecipientIsRegisteredCustomer", "Value": "Y" }
+          ]
+        }
+      }
+    },
+    "c2bConfirmation": {
+      "TransactionType": "Pay Bill",
+      "TransID": "TEST123456",
+      "TransTime": "20260115143000",
+      "TransAmount": "1000.00",
+      "BusinessShortCode": "123456",
+      "BillRefNumber": "INV001",
+      "InvoiceNumber": "",
+      "OrgAccountBalance": "50000.00",
+      "ThirdPartyTransID": "",
+      "MSISDN": "254712345678",
+      "FirstName": "John",
+      "MiddleName": "Doe",
+      "LastName": "Smith"
+    },
+    "c2bValidation": {
+      "TransactionType": "Pay Bill",
+      "TransID": "TEST123456",
+      "TransTime": "20260115143000",
+      "TransAmount": "1000.00",
+      "BusinessShortCode": "123456",
+      "BillRefNumber": "INV001",
+      "InvoiceNumber": "",
+      "OrgAccountBalance": "50000.00",
+      "ThirdPartyTransID": "",
+      "MSISDN": "254712345678",
+      "FirstName": "John",
+      "MiddleName": "Doe",
+      "LastName": "Smith"
+    },
+    "reversal": {
+      "Result": {
+        "ResultType": 0,
+        "ResultCode": 0,
+        "ResultDesc": "The service request is processed successfully.",
+        "OriginatorConversationID": "test-reversal-originator-id",
+        "ConversationID": "AG_20240115_0987654321fedcba",
+        "TransactionID": "test-transaction-id"
+      }
+    }
+  },
+  "mtnMomo": {
+    "requestToPay": {
+      "amount": "1000",
+      "currency": "UGX",
+      "externalId": "INV001",
+      "payer": {
+        "partyIdType": "MSISDN",
+        "partyId": "256712345678"
+      },
+      "payerMessage": "Payment for invoice",
+      "payeeNote": "Thank you for your business"
+    },
+    "successfulTransfer": {
+      "financialTransactionId": "1234567890",
+      "externalId": "INV001",
+      "amount": "1000",
+      "currency": "UGX",
+      "payee": {
+        "partyIdType": "MSISDN",
+        "partyId": "256712345678"
+      },
+      "payerMessage": "Payment for invoice",
+      "payeeNote": "Thank you for your business",
+      "status": "SUCCESSFUL"
+    },
+    "pendingTransfer": {
+      "financialTransactionId": "1234567890",
+      "externalId": "INV001",
+      "amount": "1000",
+      "currency": "UGX",
+      "payee": {
+        "partyIdType": "MSISDN",
+        "partyId": "256712345678"
+      },
+      "status": "PENDING"
+    },
+    "failedTransfer": {
+      "financialTransactionId": "1234567890",
+      "externalId": "INV001",
+      "amount": "1000",
+      "currency": "UGX",
+      "payee": {
+        "partyIdType": "MSISDN",
+        "partyId": "256712345678"
+      },
+      "status": "FAILED",
+      "errorReason": "Insufficient balance"
+    }
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "initialize": {
+    "success": {
+      "status": true,
+      "message": "Authorization URL created",
+      "data": {
+        "authorization_url": "https://checkout.paystack.com/test_authorization_code",
+        "access_code": "test_access_code",
+        "reference": "PS_20260115143000_abc123"
+      }
+    },
+    "error": {
+      "status": false,
+      "message": "Invalid key"
+    }
+  },
+  "verify": {
+    "success": {
+      "status": true,
+      "message": "Verification successful",
+      "data": {
+        "id": 123456789,
+        "domain": "test",
+        "status": "success",
+        "reference": "PS_20260115143000_abc123",
+        "amount": 500000,
+        "message": null,
+        "gateway_response": "Successful",
+        "paid_at": "2026-01-15T14:30:00.000Z",
+        "created_at": "2026-01-15T14:25:00.000Z",
+        "channel": "card",
+        "currency": "NGN",
+        "ip_address": "127.0.0.1",
+        "metadata": {
+          "customer_name": "John Doe"
+        },
+        "log": null,
+        "fees": 7500,
+        "fees_split": null,
+        "authorization": {
+          "authorization_code": "AUTH_test123",
+          "bin": "408408",
+          "last4": "4081",
+          "exp_month": "12",
+          "exp_year": "2026",
+          "channel": "card",
+          "card_type": "visa",
+          "bank": "Test Bank",
+          "country_code": "NG",
+          "brand": "visa",
+          "reusable": true,
+          "signature": "SIG_test123"
+        },
+        "customer": {
+          "id": 123456,
+          "first_name": "John",
+          "last_name": "Doe",
+          "email": "john.doe@example.com",
+          "customer_code": "CUS_test123",
+          "phone": "+2348012345678",
+          "metadata": null,
+          "risk_action": "default"
+        },
+        "plan": null,
+        "subaccount": {},
+        "split": {},
+        "order_id": null,
+        "paidAt": "2026-01-15T14:30:00.000Z",
+        "createdAt": "2026-01-15T14:25:00.000Z",
+        "requested_amount": 500000
+      }
+    },
+    "pending": {
+      "status": true,
+      "message": "Verification successful",
+      "data": {
+        "id": 123456789,
+        "domain": "test",
+        "status": "pending",
+        "reference": "PS_20260115143000_abc123",
+        "amount": 500000,
+        "gateway_response": "Pending",
+        "paid_at": null,
+        "created_at": "2026-01-15T14:25:00.000Z",
+        "channel": "card",
+        "currency": "NGN",
+        "customer": {
+          "email": "john.doe@example.com",
+          "customer_code": "CUS_test123"
+        }
+      }
+    }
+  },
+  "refund": {
+    "success": {
+      "status": true,
+      "message": "Refund initiated successfully",
+      "data": {
+        "transaction": {
+          "id": 123456789,
+          "domain": "test",
+          "reference": "PS_20260115143000_abc123",
+          "amount": 500000,
+          "paid_at": "2026-01-15T14:30:00.000Z"
+        },
+        "currency": "NGN",
+        "amount": 500000,
+        "status": "processed",
+        "refunded_at": "2026-01-15T15:00:00.000Z",
+        "refunded_by": "admin@example.com"
+      }
+    },
+    "partial": {
+      "status": true,
+      "message": "Partial refund initiated successfully",
+      "data": {
+        "transaction": {
+          "id": 123456789,
+          "reference": "PS_20260115143000_abc123",
+          "amount": 500000
+        },
+        "currency": "NGN",
+        "amount": 250000,
+        "status": "processed"
+      }
+    }
+  },
+  "transfer": {
+    "success": {
+      "status": true,
+      "message": "Transfer initiated",
+      "data": {
+        "reference": "TRF_20260115143000_xyz789",
+        "integration": 123456,
+        "domain": "test",
+        "amount": 100000,
+        "currency": "NGN",
+        "source": "balance",
+        "reason": "Payment for services",
+        "recipient": 12345678,
+        "status": "pending",
+        "transfer_code": "TRF_test123",
+        "id": 987654321,
+        "createdAt": "2026-01-15T14:30:00.000Z",
+        "updatedAt": "2026-01-15T14:30:00.000Z"
+      }
+    },
+    "successCompleted": {
+      "status": true,
+      "message": "Transfer successful",
+      "data": {
+        "reference": "TRF_20260115143000_xyz789",
+        "amount": 100000,
+        "currency": "NGN",
+        "status": "success",
+        "transfer_code": "TRF_test123",
+        "transferred_at": "2026-01-15T14:31:00.000Z"
+      }
+    }
+  },
+  "balance": {
+    "success": {
+      "status": true,
+      "message": "Balances retrieved",
+      "data": [
+        {
+          "currency": "NGN",
+          "balance": 25000000
+        },
+        {
+          "currency": "USD",
+          "balance": 50000
+        }
+      ]
+    }
+  },
+  "banks": {
+    "success": {
+      "status": true,
+      "message": "Banks retrieved",
+      "data": [
+        {
+          "name": "Access Bank",
+          "slug": "access-bank",
+          "code": "044",
+          "longcode": "044150149",
+          "gateway": "etz",
+          "pay_with_bank": false,
+          "active": true,
+          "is_deleted": false,
+          "country": "Nigeria",
+          "currency": "NGN",
+          "type": "nuban",
+          "id": 1,
+          "createdAt": "2016-07-14T10:04:29.000Z",
+          "updatedAt": "2016-07-14T10:04:29.000Z"
+        },
+        {
+          "name": "GTBank",
+          "slug": "gtbank",
+          "code": "058",
+          "longcode": "058152236",
+          "gateway": "etz",
+          "pay_with_bank": false,
+          "active": true,
+          "is_deleted": false,
+          "country": "Nigeria",
+          "currency": "NGN",
+          "type": "nuban",
+          "id": 2,
+          "createdAt": "2016-07-14T10:04:29.000Z",
+          "updatedAt": "2016-07-14T10:04:29.000Z"
+        }
+      ]
+    }
+  }
+}

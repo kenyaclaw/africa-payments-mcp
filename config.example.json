@@ -1,0 +1,52 @@
+{
+  "providers": {
+    "mpesa": {
+      "enabled": true,
+      "environment": "sandbox",
+      "consumerKey": "your-mpesa-consumer-key",
+      "consumerSecret": "your-mpesa-consumer-secret",
+      "passkey": "your-mpesa-passkey",
+      "shortCode": "174379",
+      "initiatorName": "testapi",
+      "initiatorPassword": "Safaricom999!*!",
+      "securityCredential": "your-security-credential"
+    },
+    "paystack": {
+      "enabled": true,
+      "environment": "sandbox",
+      "secretKey": "sk_test_your_paystack_secret_key",
+      "publicKey": "pk_test_your_paystack_public_key",
+      "webhookSecret": "whsec_your_webhook_secret"
+    },
+    "intasend": {
+      "enabled": false,
+      "environment": "sandbox",
+      "publishableKey": "ISPubKey_test_your_publishable_key",
+      "secretKey": "ISSecretKey_test_your_secret_key"
+    },
+    "mtn_momo": {
+      "enabled": false,
+      "environment": "sandbox",
+      "apiUser": "your-momo-api-user",
+      "apiKey": "your-momo-api-key",
+      "subscriptionKey": "your-momo-subscription-key",
+      "targetEnvironment": "sandbox"
+    },
+    "airtel_money": {
+      "enabled": false,
+      "environment": "sandbox",
+      "clientId": "your-airtel-client-id",
+      "clientSecret": "your-airtel-client-secret"
+    }
+  },
+  "defaults": {
+    "currency": "KES",
+    "country": "KE",
+    "provider": "mpesa"
+  },
+  "server": {
+    "port": 3000,
+    "logLevel": "info",
+    "webhookBaseUrl": "https://your-domain.com/webhooks"
+  }
+}

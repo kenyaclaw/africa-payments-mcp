@@ -1,0 +1,28 @@
+{
+  "name": "africa-payments-example",
+  "version": "1.0.0",
+  "description": "Example Node.js app using Africa Payments MCP SDK",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "africa-payments",
+    "mpesa",
+    "paystack",
+    "example"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@kenyaclaw/africa-payments-mcp": "^0.1.0",
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0"
+  }
+}

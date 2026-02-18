@@ -1,0 +1,51 @@
+# Source files
+src/
+tests/
+test/
+__tests__/
+
+# Documentation (keep README.md, LICENSE)
+docs/
+*.md
+!README.md
+!LICENSE
+
+# Git
+.git/
+.gitignore
+.github/
+
+# TypeScript configuration
+tsconfig.json
+tsconfig.build.json
+
+# Test files
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage/
+*.snap
+
+# Development files
+.env
+.env.local
+.env.*.local
+.vscode/
+.idea/
+*.log
+logs/
+
+# Build artifacts that shouldn't be included
+*.tsbuildinfo
+
+# CI/CD
+.travis.yml
+.circleci/
+.gitlab-ci.yml
+
+# Other
+.eslintrc*
+.prettierrc*
+jest.config.*
+.husky/

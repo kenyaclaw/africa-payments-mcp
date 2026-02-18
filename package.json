@@ -1,0 +1,102 @@
+{
+  "name": "@kenyaclaw/africa-payments-mcp",
+  "version": "0.1.0",
+  "description": "Unified MCP server for African payment providers - M-Pesa, Paystack, MTN MoMo, and more",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "africa",
+    "payments",
+    "fintech",
+    "mpesa",
+    "paystack",
+    "mtn-momo",
+    "mobile-money",
+    "kenya",
+    "nigeria",
+    "ghana",
+    "uganda",
+    "tanzania"
+  ],
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "type": "module",
+  "bin": {
+    "africa-payments-mcp": "./build/index.js"
+  },
+  "files": [
+    "build/**/*",
+    "README.md",
+    "LICENSE",
+    "config.example.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run test && npm run build",
+    "dev": "tsc --watch",
+    "start": "node build/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest --testPathIgnorePatterns=integration",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:staged": "jest --findRelatedTests --passWithNoTests",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "clean": "rm -rf build",
+    "docker:build": "docker build -t kenyaclaw/africa-payments-mcp .",
+    "docker:run": "docker run -v $(pwd)/config.json:/app/config/config.json kenyaclaw/africa-payments-mcp",
+    "security:audit": "npm audit",
+    "precommit": "lint-staged"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kenyaclaw/africa-payments-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kenyaclaw/africa-payments-mcp/issues"
+  },
+  "homepage": "https://github.com/kenyaclaw/africa-payments-mcp#readme",
+  "author": "KenyaClaw Team <team@kenyaclaw.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0",
+    "commander": "^11.0.0",
+    "dotenv": "^16.3.0",
+    "winston": "^3.11.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.50.0",
+    "husky": "^8.0.0",
+    "jest": "^29.7.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.0"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write",
+      "jest --findRelatedTests --passWithNoTests"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}
