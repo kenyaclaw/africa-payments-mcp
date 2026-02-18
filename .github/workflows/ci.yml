@@ -84,8 +84,8 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
           verbose: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        # Token not required for public repos - Codecov uses tokenless uploads
+        # For private repos or if issues arise, add CODECOV_TOKEN secret
 
   integration:
     name: Integration Tests

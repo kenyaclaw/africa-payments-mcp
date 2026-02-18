@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: write
-  packages: write
+  id-token: write  # Required for Trusted Publishing to NPM
 
 jobs:
   test:
@@ -67,9 +67,11 @@ jobs:
           git log --pretty=format:"- %s (%h)" $(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo HEAD~10)..HEAD >> CHANGELOG_ENTRY.md
 
       - name: Publish to NPM
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          # For Trusted Publishing (OIDC), no token needed - configure at:
+          # https://www.npmjs.com/package/@kenyaclaw/africa-payments-mcp/access
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
