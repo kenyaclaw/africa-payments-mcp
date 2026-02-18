@@ -4,6 +4,7 @@
 
 import { ProviderRegistry } from './registry.js';
 import { Logger } from './logger.js';
+import { ProviderSelector, ProviderScore } from './provider-selector.js';
 import { 
   ToolDefinition, 
   ToolResult, 
@@ -17,10 +18,14 @@ import {
 } from '../types/index.js';
 
 export class ToolManager {
+  private providerSelector: ProviderSelector;
+
   constructor(
     private registry: ProviderRegistry,
     private logger: Logger
-  ) {}
+  ) {
+    this.providerSelector = new ProviderSelector(registry, logger);
+  }
 
   getAllTools(): ToolDefinition[] {
     return [
