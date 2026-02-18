@@ -10,14 +10,18 @@ import { MetricsCollector } from '../src/utils/metrics.js';
 import { CircuitBreaker, CircuitBreakerRegistry } from '../src/utils/circuit-breaker.js';
 import { IdempotencyStore, TransactionIdCache } from '../src/utils/idempotency.js';
 import { HealthMonitor, createHttpHealthCheck } from '../src/utils/health-check.js';
-import { StructuredLogger } from '../src/utils/structured-logger.js';
+import { StructuredLogger, Logger, ILogger } from '../src/utils/structured-logger.js';
+
+// Port counter to avoid port conflicts
+let portCounter = 19000;
 
 describe('Observability Features', () => {
   describe('Health Check Endpoint', () => {
     let server: WebhookServer;
-    const testPort = 18080;
+    let testPort: number;
 
     beforeEach(async () => {
+      testPort = portCounter++;
       server = createWebhookServer({
         port: testPort,
         criticalProviders: ['mpesa'],
@@ -27,6 +31,8 @@ describe('Observability Features', () => {
 
     afterEach(async () => {
       await server.stop();
+      // Small delay to ensure port is released
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
 
     it('should return 200 for healthy status', async () => {
@@ -87,9 +93,10 @@ describe('Observability Features', () => {
 
   describe('Metrics Endpoint', () => {
     let server: WebhookServer;
-    const testPort = 18081;
+    let testPort: number;
 
     beforeEach(async () => {
+      testPort = portCounter++;
       server = createWebhookServer({
         port: testPort,
       });
@@ -98,6 +105,7 @@ describe('Observability Features', () => {
 
     afterEach(async () => {
       await server.stop();
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
 
     it('should return Prometheus formatted metrics', async () => {
@@ -130,9 +138,10 @@ describe('Observability Features', () => {
 
   describe('Circuit Breaker Reset Endpoint', () => {
     let server: WebhookServer;
-    const testPort = 18082;
+    let testPort: number;
 
     beforeEach(async () => {
+      testPort = portCounter++;
       server = createWebhookServer({
         port: testPort,
       });
@@ -141,6 +150,7 @@ describe('Observability Features', () => {
 
     afterEach(async () => {
       await server.stop();
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
 
     it('should reset circuit breaker for valid provider', async () => {
@@ -653,7 +663,6 @@ describe('Observability Features', () => {
     });
 
     it('should maintain backwards compatibility with Logger', () => {
-      const { Logger } = require('../src/utils/logger.js');
       const logger = new Logger('info');
       
       expect(() => {

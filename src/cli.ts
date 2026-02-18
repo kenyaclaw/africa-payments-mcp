@@ -15,9 +15,14 @@ import { createServer } from './server.js';
 import { startPlayground } from './playground.js';
 import { ConfigManager } from './utils/config.js';
 import { Logger } from './utils/logger.js';
+import {
+  parseNaturalLanguageConfig,
+  generateConfigFromParsed,
+  formatParsedConfig,
+} from './utils/natural-config.js';
 
 // Import styling libraries
-import chalk from 'chalk';
+import pc from 'picocolors';
 import ora from 'ora';
 import boxen from 'boxen';
 import figlet from 'figlet';
@@ -31,15 +36,15 @@ export const program = new Command();
 
 // Color palette
 const colors = {
-  primary: chalk.hex('#008751'),      // African green
-  secondary: chalk.hex('#FF6B35'),    // Warm orange
-  accent: chalk.hex('#F4D03F'),       // Gold
-  info: chalk.hex('#3498DB'),         // Blue
-  success: chalk.hex('#27AE60'),      // Green
-  warning: chalk.hex('#F39C12'),      // Orange
-  error: chalk.hex('#E74C3C'),        // Red
-  muted: chalk.gray,
-  bold: chalk.bold,
+  primary: pc.green,                  // African green
+  secondary: pc.red,                  // Warm accent
+  accent: pc.yellow,                  // Gold
+  info: pc.cyan,                      // Blue
+  success: pc.green,                  // Green
+  warning: pc.yellow,                 // Orange/Yellow
+  error: pc.red,                      // Red
+  muted: pc.gray,
+  bold: (text: string) => pc.bold(text),
 };
 
 // Emoji mapping
@@ -73,9 +78,9 @@ async function printBanner() {
   });
   
   console.log(gradient(['#008751', '#F4D03F', '#FF6B35']).multiline(figletText));
-  console.log(chalk.dim('═'.repeat(60)));
+  console.log(pc.dim('═'.repeat(60)));
   console.log(colors.muted('     Unified MCP Server for African Payment Providers'));
-  console.log(chalk.dim('═'.repeat(60)));
+  console.log(pc.dim('═'.repeat(60)));
   console.log();
 }
 
@@ -1053,6 +1058,98 @@ program
         process.exit(1);
       }
     }
+  });
+
+// Setup command - Natural language config generation
+program
+  .command('setup')
+  .description('Setup configuration using natural language')
+  .argument('<description>', 'Description of desired configuration (e.g., "I want M-Pesa in Kenya and Paystack in Nigeria")')
+  .option('-o, --output <path>', 'Output path for config file', 'config.json')
+  .action(async (description, options) => {
+    await printBanner();
+    
+    console.log(colors.info(`${emoji.sparkles} Setting up configuration from natural language...`));
+    console.log(colors.muted(`  Input: "${description}"\n`));
+    
+    // Parse natural language input
+    const parsed = parseNaturalLanguageConfig(description);
+    
+    // Display parsed results
+    console.log(formatParsedConfig(parsed));
+    
+    // Check if any providers were detected
+    if (parsed.providers.length === 0) {
+      console.log(boxen(
+        `${colors.warning('No providers detected')}\n\n` +
+        `We couldn't find any payment providers in your description.\n\n` +
+        `${colors.info('Supported providers:')}\n` +
+        `  • M-Pesa (Kenya, Tanzania, etc.)\n` +
+        `  • Paystack (Nigeria, Ghana, etc.)\n` +
+        `  • MTN MoMo (Uganda, Ghana, etc.)\n` +
+        `  • Airtel Money (Kenya, Uganda, etc.)\n` +
+        `  • IntaSend (Kenya, Nigeria)\n\n` +
+        `${colors.info('Example:')}\n` +
+        `  africa-payments-mcp setup "I want M-Pesa in Kenya"`,
+        {
+          padding: 1,
+          borderStyle: 'round',
+          borderColor: 'yellow',
+        }
+      ));
+      process.exit(1);
+    }
+    
+    // Generate config
+    const config = generateConfigFromParsed(parsed);
+    
+    // Check for existing file
+    const outputPath = path.resolve(options.output);
+    try {
+      await fs.access(outputPath);
+      console.log(colors.warning(`${emoji.warning} Configuration file already exists: ${outputPath}`));
+      
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      
+      const overwrite = await askQuestion(
+        rl,
+        colors.bold('Overwrite existing file? (y/n): ')
+      );
+      
+      rl.close();
+      
+      if (overwrite.toLowerCase() !== 'y') {
+        console.log(colors.muted('Cancelled'));
+        return;
+      }
+    } catch {
+      // File doesn't exist, continue
+    }
+    
+    // Write configuration file
+    await fs.writeFile(outputPath, JSON.stringify(config, null, 2));
+    
+    console.log();
+    console.log(boxen(
+      `${colors.success(`${emoji.party} Configuration created successfully!`)}\n\n` +
+      `${colors.bold('File:')} ${outputPath}\n` +
+      `${colors.bold('Providers:')} ${parsed.providers.join(', ')}\n` +
+      `${colors.bold('Default Country:')} ${config.defaults.country}\n` +
+      `${colors.bold('Default Currency:')} ${config.defaults.currency}\n\n` +
+      `${colors.info('Next Steps:')}\n` +
+      `  ${emoji.arrow} Validate: ${colors.bold(`africa-payments-mcp validate -c ${outputPath}`)}\n` +
+      `  ${emoji.arrow} Test: ${colors.bold(`africa-payments-mcp test -c ${outputPath}`)}\n` +
+      `  ${emoji.arrow} Start: ${colors.bold(`africa-payments-mcp -c ${outputPath}`)}\n\n` +
+      `${colors.warning('Note:')} Update the placeholder credentials in ${outputPath} with your actual API keys.`,
+      {
+        padding: 1,
+        borderStyle: 'double',
+        borderColor: 'green',
+      }
+    ));
   });
 
 // Playground command - Interactive REPL

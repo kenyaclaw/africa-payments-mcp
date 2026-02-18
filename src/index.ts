@@ -13,3 +13,7 @@ program.parse();
 // Export SDK for programmatic usage
 export { AfricaPaymentsClient, createServer, AfricaPaymentsMCPServer } from './server.js';
 export * from './types/index.js';
+
+// Export observability utilities
+export * from './utils/observability.js';
+export { WebhookServer, createWebhookServer } from './webhook/server.js';
