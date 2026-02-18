@@ -5,7 +5,7 @@
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { URL } from 'url';
-import { Logger, StructuredLogger, getGlobalLogger } from '../utils/structured-logger.js';
+import { ILogger, StructuredLogger, getGlobalLogger } from '../utils/structured-logger.js';
 import { MetricsCollector, getGlobalMetrics } from '../utils/metrics.js';
 import { CircuitBreakerRegistry, getGlobalCircuitBreakerRegistry } from '../utils/circuit-breaker.js';
 import { IdempotencyStore, getGlobalIdempotencyStore } from '../utils/idempotency.js';
@@ -38,7 +38,7 @@ export interface WebhookServerConfig {
   // Custom event emitter (optional)
   eventEmitter?: PaymentEventEmitter;
   // Custom logger (optional)
-  logger?: StructuredLogger;
+  logger?: ILogger;
   // Custom metrics collector (optional)
   metrics?: MetricsCollector;
   // Custom circuit breaker registry (optional)
@@ -68,7 +68,7 @@ export interface WebhookLogEntry {
 
 export class WebhookServer {
   private server: Server | null = null;
-  private logger: StructuredLogger;
+  private logger: ILogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private config: WebhookServerConfig;

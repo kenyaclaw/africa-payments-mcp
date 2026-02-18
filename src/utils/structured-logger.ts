@@ -21,7 +21,15 @@ export interface StructuredLoggerOptions {
   defaultMeta?: Record<string, any>;
 }
 
-export class StructuredLogger {
+// Common logger interface for both old and new loggers
+export interface ILogger {
+  debug(message: string, meta?: Record<string, any>): void;
+  info(message: string, meta?: Record<string, any>): void;
+  warn(message: string, meta?: Record<string, any>): void;
+  error(message: string, error?: Error, meta?: Record<string, any>): void;
+}
+
+export class StructuredLogger implements ILogger {
   private logger: winston.Logger;
   private correlationId: string | undefined;
 
@@ -244,7 +252,7 @@ export function setGlobalLogger(logger: StructuredLogger): void {
 }
 
 // Keep backwards compatibility with the old Logger class
-export class Logger {
+export class Logger implements ILogger {
   private structuredLogger: StructuredLogger;
 
   constructor(level: string = 'info') {
@@ -254,23 +262,19 @@ export class Logger {
     });
   }
 
-  debug(message: string): void {
-    this.structuredLogger.debug(message);
+  debug(message: string, meta?: Record<string, any>): void {
+    this.structuredLogger.debug(message, meta);
   }
 
-  info(message: string): void {
-    this.structuredLogger.info(message);
+  info(message: string, meta?: Record<string, any>): void {
+    this.structuredLogger.info(message, meta);
   }
 
-  warn(message: string): void {
-    this.structuredLogger.warn(message);
+  warn(message: string, meta?: Record<string, any>): void {
+    this.structuredLogger.warn(message, meta);
   }
 
-  error(message: string): void {
-    this.structuredLogger.error(message);
-  }
-
-  static generateCorrelationId(): string {
-    return StructuredLogger.generateCorrelationId();
+  error(message: string, error?: Error, meta?: Record<string, any>): void {
+    this.structuredLogger.error(message, error, meta);
   }
 }

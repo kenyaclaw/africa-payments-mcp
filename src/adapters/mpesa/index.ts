@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { RetryIndicator } from '../../utils/retry-indicator.js';
 import { 
   PaymentProvider, 
   MpesaConfig, 
@@ -71,9 +72,14 @@ export class MpesaAdapter implements PaymentProvider {
       },
     });
 
-    // Add request retry interceptor
+    // Add request retry interceptor with visual indicator
+    const retryIndicator = new RetryIndicator();
+    
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Reset indicator on success
+        return response;
+      },
       async (error: AxiosError) => {
         const config = error.config;
         if (!config) return Promise.reject(error);
@@ -83,11 +89,22 @@ export class MpesaAdapter implements PaymentProvider {
 
         if (retryCount < maxRetries && this.isRetryableError(error)) {
           (config as any).retryCount = retryCount + 1;
+          
+          // Visual retry indicator
+          if (retryCount === 0) {
+            retryIndicator.start('M-Pesa API', maxRetries);
+          }
+          retryIndicator.nextAttempt(error);
+          
           const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.client(config);
         }
 
+        if (retryCount > 0) {
+          retryIndicator.failure(error instanceof Error ? error : new Error(String(error)));
+        }
+        
         return Promise.reject(error);
       }
     );

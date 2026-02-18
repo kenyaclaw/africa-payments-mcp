@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { Logger } from '../../utils/structured-logger.js';
+import { StructuredLogger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   PaymentEventData,
@@ -422,7 +422,7 @@ export class ChipperCashWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createChipperCashWebhookHandler(
-  logger: StructuredLogger,
+  logger: ILogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   webhookSecret?: string

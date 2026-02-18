@@ -4,7 +4,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'crypto';
-import { StructuredLogger } from '../utils/structured-logger.js';
+import { ILogger, StructuredLogger } from '../utils/structured-logger.js';
 
 export interface VerificationResult {
   valid: boolean;
@@ -28,9 +28,9 @@ export interface MpesaStkCallback {
 }
 
 export class WebhookVerifier {
-  private logger: StructuredLogger;
+  private logger: ILogger;
 
-  constructor(logger: StructuredLogger) {
+  constructor(logger: ILogger) {
     this.logger = logger;
   }
 
@@ -619,7 +619,7 @@ export class WebhookVerifier {
 
 let globalVerifier: WebhookVerifier | null = null;
 
-export function getGlobalVerifier(logger?: StructuredLogger): WebhookVerifier {
+export function getGlobalVerifier(logger?: ILogger): WebhookVerifier {
   if (!globalVerifier) {
     globalVerifier = new WebhookVerifier(logger || new StructuredLogger());
   }

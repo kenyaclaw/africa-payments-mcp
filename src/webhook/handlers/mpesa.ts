@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
+import { StructuredLogger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   PaymentEventData,
@@ -487,7 +487,7 @@ export class MpesaWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createMpesaWebhookHandler(
-  logger: StructuredLogger,
+  logger: ILogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier
 ): MpesaWebhookHandler {

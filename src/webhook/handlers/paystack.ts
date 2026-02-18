@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
+import { StructuredLogger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   PaymentEventData,
@@ -536,7 +536,7 @@ export class PaystackWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createPaystackWebhookHandler(
-  logger: StructuredLogger,
+  logger: ILogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   webhookSecret?: string

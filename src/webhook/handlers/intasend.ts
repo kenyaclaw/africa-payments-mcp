@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
+import { StructuredLogger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   createEventId 
@@ -501,7 +501,7 @@ export class IntaSendWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createIntaSendWebhookHandler(
-  logger: StructuredLogger,
+  logger: ILogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   webhookSecret?: string
