@@ -153,7 +153,7 @@ export class PaystackWebhookHandler {
   private webhookSecret?: string;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier,
     webhookSecret?: string
@@ -536,7 +536,7 @@ export class PaystackWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createPaystackWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   webhookSecret?: string

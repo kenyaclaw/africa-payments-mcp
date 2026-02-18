@@ -501,7 +501,7 @@ export class IntaSendWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createIntaSendWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   webhookSecret?: string

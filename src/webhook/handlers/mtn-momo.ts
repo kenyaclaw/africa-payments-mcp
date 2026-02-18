@@ -495,7 +495,7 @@ export class MTNMoMoWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createMTNMoMoWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   apiKey?: string

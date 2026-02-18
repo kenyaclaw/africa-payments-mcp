@@ -97,13 +97,13 @@ export interface WaveRefundData {
 // ==================== Handler Class ====================
 
 export class WaveWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private apiSecret?: string;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier,
     apiSecret?: string
@@ -398,7 +398,7 @@ export class WaveWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createWaveWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   apiSecret?: string

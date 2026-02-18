@@ -211,6 +211,27 @@ export class ToolManager {
       provider: selectedProvider,
     };
 
+    // Check simulation mode
+    if (this.simulationMode.isEnabled()) {
+      const transaction = await this.simulationMode.simulateSendMoney(selectedProvider, params);
+      
+      let responseText = this.formatTransactionResponse(transaction, 'Send Money (Simulated)');
+      responseText += '\n' + this.simulationMode.formatSimulationMessage('sendMoney', {
+        Provider: selectedProvider,
+        To: recipient_phone,
+        Amount: `${amount} ${detectedCurrency}`,
+        'Transaction ID': transaction.id,
+      });
+      
+      if (provider === 'auto' && selectionReason) {
+        responseText += `\n🤖 Smart Selection: ${selectedProvider} - ${selectionReason}\n`;
+      }
+      
+      return {
+        content: [{ type: 'text', text: responseText }],
+      };
+    }
+
     const transaction = await providerInstance.sendMoney(params);
 
     // Format response with smart selection info if applicable

@@ -103,13 +103,13 @@ export interface ChipperCashRefundData {
 // ==================== Handler Class ====================
 
 export class ChipperCashWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private webhookSecret?: string;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier,
     webhookSecret?: string
@@ -422,7 +422,7 @@ export class ChipperCashWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createChipperCashWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier,
   webhookSecret?: string

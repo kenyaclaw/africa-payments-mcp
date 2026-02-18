@@ -487,7 +487,7 @@ export class MpesaWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createMpesaWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier
 ): MpesaWebhookHandler {

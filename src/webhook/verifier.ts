@@ -4,7 +4,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'crypto';
-import { Logger } from '../utils/structured-logger.js';
+import { StructuredLogger } from '../utils/structured-logger.js';
 
 export interface VerificationResult {
   valid: boolean;

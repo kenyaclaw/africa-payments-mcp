@@ -71,12 +71,12 @@ export interface OrangeMoneyRefundCallback {
 // ==================== Handler Class ====================
 
 export class OrangeMoneyWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier
   ) {
@@ -389,7 +389,7 @@ export class OrangeMoneyWebhookHandler {
 // ==================== Factory Function ====================
 
 export function createOrangeMoneyWebhookHandler(
-  logger: Logger,
+  logger: StructuredLogger,
   eventEmitter: PaymentEventEmitter,
   verifier: WebhookVerifier
 ): OrangeMoneyWebhookHandler {
