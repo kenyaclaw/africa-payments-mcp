@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🤖 Africa Payments MCP - Autonomous Operations Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-primary: #3b82f6;
+      --accent-success: #10b981;
+      --accent-warning: #f59e0b;
+      --accent-danger: #ef4444;
+      --accent-purple: #8b5cf6;
+      --border-color: #475569;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      padding: 1.5rem 2rem;
+      border-bottom: 2px solid var(--accent-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-indicator.healthy {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--accent-success);
+    }
+
+    .status-indicator.degraded {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--accent-warning);
+    }
+
+    .status-indicator.critical {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent-danger);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.healthy { background: var(--accent-success); }
+    .status-dot.degraded { background: var(--accent-warning); }
+    .status-dot.critical { background: var(--accent-danger); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .container {
+      padding: 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid var(--border-color);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-card .icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .stat-card h3 {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-trend {
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .stat-trend.positive { color: var(--accent-success); }
+    .stat-trend.negative { color: var(--accent-danger); }
+
+    .section {
+      background: var(--bg-secondary);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border-color);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .refresh-btn {
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background: #2563eb;
+    }
+
+    .refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--accent-success);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--accent-warning);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent-danger);
+    }
+
+    .badge-info {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-primary);
+    }
+
+    .badge-purple {
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--accent-purple);
+    }
+
+    .event-log {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .event-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      border-left: 3px solid var(--border-color);
+      margin-bottom: 0.5rem;
+      background: var(--bg-primary);
+      border-radius: 0.5rem;
+    }
+
+    .event-item.success { border-left-color: var(--accent-success); }
+    .event-item.warning { border-left-color: var(--accent-warning); }
+    .event-item.danger { border-left-color: var(--accent-danger); }
+    .event-item.info { border-left-color: var(--accent-primary); }
+
+    .event-time {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      min-width: 120px;
+    }
+
+    .event-content {
+      flex: 1;
+    }
+
+    .event-title {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .event-details {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+
+    .tab {
+      padding: 0.75rem 1.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .tab.active {
+      color: var(--accent-primary);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .provider-card {
+      background: var(--bg-primary);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .provider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .provider-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .metric {
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-fill.success { background: var(--accent-success); }
+    .progress-fill.warning { background: var(--accent-warning); }
+    .progress-fill.danger { background: var(--accent-danger); }
+
+    .chart-container {
+      height: 300px;
+      background: var(--bg-primary);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+    }
+
+    .prediction-card {
+      background: var(--bg-primary);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      border-left: 4px solid var(--accent-purple);
+    }
+
+    .prediction-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .prediction-title {
+      font-weight: 600;
+    }
+
+    .confidence-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .confidence-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      min-width: 80px;
+    }
+
+    .optimization-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      background: var(--bg-primary);
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .optimization-config {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .config-arrow {
+      color: var(--text-secondary);
+    }
+
+    .config-value {
+      font-family: monospace;
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-tertiary);
+      border-radius: 0.25rem;
+    }
+
+    .config-value.old {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    .config-value.new {
+      color: var(--accent-success);
+    }
+
+    .control-panel {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .control-btn {
+      padding: 0.75rem 1.5rem;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-btn:hover {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .control-btn.danger:hover {
+      background: var(--accent-danger);
+      border-color: var(--accent-danger);
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.75rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        padding: 1rem;
+      }
+
+      .container {
+        padding: 1rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      th, td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+      }
+
+      .event-item {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>
+      <span>🤖</span>
+      Africa Payments MCP - Autonomous Operations
+    </h1>
+    <div class="status-indicator healthy">
+      <span class="status-dot healthy"></span>
+      System Healthy
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="icon">🩺</div>
+        <h3>Self-Healing Events</h3>
+        <div class="stat-value" id="healing-events">0</div>
+        <div class="stat-trend positive">
+          <span>↑</span> <span id="healing-success-rate">0%</span> success rate
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="icon">📈</div>
+        <h3>Current Instances</h3>
+        <div class="stat-value" id="current-instances">0</div>
+        <div class="stat-trend positive">
+          <span id="scaling-events">0</span> scaling events today
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="icon">🔮</div>
+        <h3>Active Predictions</h3>
+        <div class="stat-value" id="active-predictions">0</div>
+        <div class="stat-trend positive">
+          <span id="prediction-accuracy">0%</span> accuracy
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="icon">⚡</div>
+        <h3>Optimizations</h3>
+        <div class="stat-value" id="total-optimizations">0</div>
+        <div class="stat-trend positive">
+          <span id="avg-improvement">0%</span> avg improvement
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="self-healing">Self-Healing</button>
+      <button class="tab" data-tab="auto-scaling">Auto-Scaling</button>
+      <button class="tab" data-tab="predictions">Predictions</button>
+      <button class="tab" data-tab="optimizations">Optimizations</button>
+      <button class="tab" data-tab="providers">Providers</button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">📊 System Overview</h2>
+          <button class="refresh-btn" onclick="refreshData()">
+            <span>🔄</span> Refresh
+          </button>
+        </div>
+        <div class="chart-container" id="overview-chart">
+          <div>System Health Trends Chart (Last 24 Hours)</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">📝 Recent Events</h2>
+        </div>
+        <div class="event-log" id="recent-events">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading events...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Self-Healing Tab -->
+    <div class="tab-content" id="tab-self-healing">
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">🩺 Self-Healing Status</h2>
+          <div class="control-panel">
+            <button class="control-btn" onclick="forceHealthCheck()">
+              <span>🏥</span> Force Health Check
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Status</th>
+                <th>Healing Attempts</th>
+                <th>Circuit Breaker</th>
+                <th>Last Recovery</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="healing-table-body">
+              <tr>
+                <td colspan="6" class="loading">
+                  <div class="spinner"></div>
+                  Loading...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">🔄 Healing Event Log</h2>
+        </div>
+        <div class="event-log" id="healing-events-log">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading healing events...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-Scaling Tab -->
+    <div class="tab-content" id="tab-auto-scaling">
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">📈 Auto-Scaling History</h2>
+          <div class="control-panel">
+            <button class="control-btn" onclick="forceScaleUp()">
+              <span>⬆️</span> Scale Up
+            </button>
+            <button class="control-btn" onclick="forceScaleDown()">
+              <span>⬇️</span> Scale Down
+            </button>
+          </div>
+        </div>
+        <div class="chart-container" id="scaling-chart">
+          <div>Instance Count & Load Over Time</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">📊 Scaling Events</h2>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Instances</th>
+                <th>Reason</th>
+                <th>Utilization</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="scaling-table-body">
+              <tr>
+                <td colspan="6" class="loading">
+                  <div class="spinner"></div>
+                  Loading scaling events...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Predictions Tab -->
+    <div class="tab-content" id="tab-predictions">
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">🔮 Active Predictions</h2>
+          <div class="control-panel">
+            <button class="control-btn" onclick="forcePrediction()">
+              <span>🔍</span> Run Analysis
+            </button>
+          </div>
+        </div>
+        <div id="active-predictions-list">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading predictions...
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">📅 Scheduled Maintenance</h2>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Scheduled At</th>
+                <th>Provider</th>
+                <th>Duration</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="maintenance-table-body">
+              <tr>
+                <td colspan="6" class="loading">
+                  <div class="spinner"></div>
+                  Loading maintenance windows...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimizations Tab -->
+    <div class="tab-content" id="tab-optimizations">
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">⚡ Recent Optimizations</h2>
+          <div class="control-panel">
+            <button class="control-btn" onclick="forceOptimization()">
+              <span>🚀</span> Run Optimization
+            </button>
+          </div>
+        </div>
+        <div id="optimizations-list">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading optimizations...
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">🔧 Provider Configurations</h2>
+        </div>
+        <div id="provider-configs">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading configurations...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Providers Tab -->
+    <div class="tab-content" id="tab-providers">
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">🏦 Payment Providers</h2>
+          <button class="refresh-btn" onclick="refreshProviderData()">
+            <span>🔄</span> Refresh
+          </button>
+        </div>
+        <div id="providers-list">
+          <div class="loading">
+            <div class="spinner"></div>
+            Loading providers...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock data - in production, this would come from the API
+    const mockData = {
+      healingEvents: [
+        { id: '1', timestamp: new Date(Date.now() - 3600000), provider: 'mpesa', type: 'circuit_reset', status: 'completed', reason: 'Auto-reset after recovery' },
+        { id: '2', timestamp: new Date(Date.now() - 7200000), provider: 'mtn_momo', type: 'restart', status: 'completed', reason: 'High error rate detected' },
+        { id: '3', timestamp: new Date(Date.now() - 10800000), provider: 'paystack', type: 'failover', status: 'completed', reason: 'Failover to backup provider' },
+      ],
+      scalingEvents: [
+        { id: '1', timestamp: new Date(Date.now() - 1800000), type: 'scale_up', fromInstances: 3, toInstances: 5, reason: 'High utilization', utilization: 0.85, status: 'completed' },
+        { id: '2', timestamp: new Date(Date.now() - 5400000), type: 'scale_down', fromInstances: 5, toInstances: 3, reason: 'Low utilization - cost optimization', utilization: 0.25, status: 'completed' },
+      ],
+      predictions: [
+        { id: '1', timestamp: new Date(), provider: 'airtel_money', type: 'degradation', severity: 'warning', confidence: 0.75, timeframe: { expected: new Date(Date.now() + 1800000) }, indicators: [{ name: 'response_time', value: 1200, threshold: 1000 }], recommendedAction: 'Consider scaling up', status: 'active' },
+        { id: '2', timestamp: new Date(Date.now() - 3600000), provider: 'mpesa', type: 'failure', severity: 'critical', confidence: 0.85, timeframe: { expected: new Date(Date.now() - 1800000) }, indicators: [{ name: 'error_rate', value: 0.08, threshold: 0.05 }], recommendedAction: 'Schedule maintenance', status: 'confirmed' },
+      ],
+      maintenanceWindows: [
+        { id: '1', scheduledAt: new Date(Date.now() + 86400000), durationMinutes: 30, providers: ['mtn_momo'], reason: 'Predicted failure pattern', status: 'scheduled' },
+      ],
+      optimizations: [
+        { id: '1', timestamp: new Date(Date.now() - 7200000), provider: 'mpesa', category: 'timeout', parameter: 'timeoutMs', oldValue: 10000, newValue: 15000, reason: 'High timeout rate', expectedImprovement: 0.15, status: 'applied', results: { improvement: 0.12, confirmed: true } },
+        { id: '2', timestamp: new Date(Date.now() - 14400000), provider: 'paystack', category: 'retry', parameter: 'maxRetries', oldValue: 2, newValue: 3, reason: 'Transient errors detected', expectedImprovement: 0.1, status: 'applied', results: { improvement: 0.08, confirmed: true } },
+      ],
+      providers: [
+        { name: 'mpesa', status: 'healthy', health: { responseTime: 250, successRate: 0.98 }, config: { timeoutMs: 15000, maxRetries: 3 }, metrics: { requests: 15420, errors: 154 } },
+        { name: 'paystack', status: 'healthy', health: { responseTime: 180, successRate: 0.99 }, config: { timeoutMs: 10000, maxRetries: 3 }, metrics: { requests: 23100, errors: 115 } },
+        { name: 'mtn_momo', status: 'degraded', health: { responseTime: 850, successRate: 0.92 }, config: { timeoutMs: 20000, maxRetries: 4 }, metrics: { requests: 8750, errors: 525 } },
+        { name: 'airtel_money', status: 'healthy', health: { responseTime: 320, successRate: 0.97 }, config: { timeoutMs: 15000, maxRetries: 3 }, metrics: { requests: 12300, errors: 246 } },
+        { name: 'intasend', status: 'healthy', health: { responseTime: 200, successRate: 0.98 }, config: { timeoutMs: 12000, maxRetries: 3 }, metrics: { requests: 18900, errors: 189 } },
+      ],
+    };
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeTabs();
+      loadAllData();
+      
+      // Auto-refresh every 30 seconds
+      setInterval(loadAllData, 30000);
+    });
+
+    function initializeTabs() {
+      const tabs = document.querySelectorAll('.tab');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.dataset.tab;
+          
+          // Update active tab
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          
+          // Update active content
+          document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+          });
+          document.getElementById(`tab-${tabId}`).classList.add('active');
+        });
+      });
+    }
+
+    async function loadAllData() {
+      await Promise.all([
+        loadOverviewStats(),
+        loadHealingData(),
+        loadScalingData(),
+        loadPredictionsData(),
+        loadOptimizationsData(),
+        loadProvidersData(),
+        loadRecentEvents(),
+      ]);
+    }
+
+    async function loadOverviewStats() {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const healingEvents = mockData.healingEvents.length;
+      const healingSuccess = mockData.healingEvents.filter(e => e.status === 'completed').length;
+      const healingSuccessRate = healingEvents > 0 ? Math.round((healingSuccess / healingEvents) * 100) : 0;
+
+      const scalingEvents = mockData.scalingEvents.length;
+      const currentInstances = 4;
+
+      const activePredictions = mockData.predictions.filter(p => p.status === 'active').length;
+      const confirmedPredictions = mockData.predictions.filter(p => p.status === 'confirmed').length;
+      const predictionAccuracy = mockData.predictions.length > 0 
+        ? Math.round((confirmedPredictions / mockData.predictions.length) * 100) 
+        : 0;
+
+      const totalOptimizations = mockData.optimizations.length;
+      const successfulOptimizations = mockData.optimizations.filter(o => o.results?.confirmed).length;
+      const avgImprovement = totalOptimizations > 0
+        ? (mockData.optimizations.reduce((sum, o) => sum + (o.results?.improvement || 0), 0) / totalOptimizations * 100).toFixed(1)
+        : 0;
+
+      document.getElementById('healing-events').textContent = healingEvents;
+      document.getElementById('healing-success-rate').textContent = healingSuccessRate + '%';
+      document.getElementById('current-instances').textContent = currentInstances;
+      document.getElementById('scaling-events').textContent = scalingEvents;
+      document.getElementById('active-predictions').textContent = activePredictions;
+      document.getElementById('prediction-accuracy').textContent = predictionAccuracy + '%';
+      document.getElementById('total-optimizations').textContent = totalOptimizations;
+      document.getElementById('avg-improvement').textContent = avgImprovement + '%';
+    }
+
+    async function loadRecentEvents() {
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const allEvents = [
+        ...mockData.healingEvents.map(e => ({ ...e, category: 'healing', icon: '🩺' })),
+        ...mockData.scalingEvents.map(e => ({ ...e, category: 'scaling', icon: '📈' })),
+        ...mockData.predictions.map(e => ({ ...e, category: 'prediction', icon: '🔮' })),
+        ...mockData.optimizations.map(e => ({ ...e, category: 'optimization', icon: '⚡' })),
+      ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+
+      const container = document.getElementById('recent-events');
+      container.innerHTML = allEvents.map(event => `
+        <div class="event-item ${event.status === 'failed' ? 'danger' : event.category === 'prediction' && event.severity === 'critical' ? 'danger' : event.category === 'scaling' && event.type === 'scale_up' ? 'warning' : 'success'}">
+          <div class="event-time">${formatTime(event.timestamp)}</div>
+          <div class="event-content">
+            <div class="event-title">${event.icon} ${formatEventTitle(event)}</div>
+            <div class="event-details">${event.reason || event.recommendedAction || ''}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadHealingData() {
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      const tbody = document.getElementById('healing-table-body');
+      tbody.innerHTML = mockData.providers.map(provider => {
+        const healingAttempts = mockData.healingEvents.filter(e => e.provider === provider.name).length;
+        const lastRecovery = mockData.healingEvents
+          .filter(e => e.provider === provider.name && e.status === 'completed')
+          .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+        return `
+          <tr>
+            <td><strong>${provider.name.toUpperCase()}</strong></td>
+            <td><span class="badge badge-${provider.status === 'healthy' ? 'success' : provider.status === 'degraded' ? 'warning' : 'danger'}">${provider.status}</span></td>
+            <td>${healingAttempts}</td>
+            <td><span class="badge badge-success">CLOSED</span></td>
+            <td>${lastRecovery ? formatTime(lastRecovery.timestamp) : 'Never'}</td>
+            <td>
+              <button class="control-btn" onclick="forceHealing('${provider.name}')">Heal</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const eventsLog = document.getElementById('healing-events-log');
+      eventsLog.innerHTML = mockData.healingEvents.map(event => `
+        <div class="event-item ${event.status === 'completed' ? 'success' : event.status === 'failed' ? 'danger' : 'warning'}">
+          <div class="event-time">${formatTime(event.timestamp)}</div>
+          <div class="event-content">
+            <div class="event-title">${event.type.replace('_', ' ').toUpperCase()} - ${event.provider.toUpperCase()}</div>
+            <div class="event-details">${event.reason} <span class="badge badge-${event.status === 'completed' ? 'success' : event.status === 'failed' ? 'danger' : 'warning'}">${event.status}</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadScalingData() {
+      await new Promise(resolve => setTimeout(resolve, 350));
+
+      const tbody = document.getElementById('scaling-table-body');
+      tbody.innerHTML = mockData.scalingEvents.map(event => `
+        <tr>
+          <td>${formatTime(event.timestamp)}</td>
+          <td><span class="badge badge-${event.type === 'scale_up' ? 'warning' : 'info'}">${event.type.replace('_', ' ').toUpperCase()}</span></td>
+          <td>${event.fromInstances} → ${event.toInstances}</td>
+          <td>${event.reason}</td>
+          <td>${(event.utilization * 100).toFixed(0)}%</td>
+          <td><span class="badge badge-success">${event.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadPredictionsData() {
+      await new Promise(resolve => setTimeout(resolve, 450));
+
+      const activePredictions = mockData.predictions.filter(p => p.status === 'active');
+      const container = document.getElementById('active-predictions-list');
+      
+      if (activePredictions.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔮</div>
+            <p>No active predictions</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = activePredictions.map(prediction => `
+          <div class="prediction-card">
+            <div class="prediction-header">
+              <span class="prediction-title">${prediction.provider.toUpperCase()} - ${prediction.type.toUpperCase()}</span>
+              <span class="badge badge-${prediction.severity === 'critical' ? 'danger' : prediction.severity === 'warning' ? 'warning' : 'info'}">${prediction.severity}</span>
+            </div>
+            <div class="event-details">${prediction.recommendedAction}</div>
+            <div class="confidence-bar">
+              <span class="confidence-label">Confidence:</span>
+              <div class="progress-bar" style="flex: 1;">
+                <div class="progress-fill ${prediction.confidence > 0.8 ? 'danger' : prediction.confidence > 0.6 ? 'warning' : 'success'}" style="width: ${prediction.confidence * 100}%"></div>
+              </div>
+              <span>${(prediction.confidence * 100).toFixed(0)}%</span>
+            </div>
+            <div style="margin-top: 0.75rem; font-size: 0.875rem; color: var(--text-secondary);">
+              Expected: ${formatTime(prediction.timeframe.expected)}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      const maintTbody = document.getElementById('maintenance-table-body');
+      maintTbody.innerHTML = mockData.maintenanceWindows.map(window => `
+        <tr>
+          <td>${formatTime(window.scheduledAt)}</td>
+          <td>${window.providers.map(p => p.toUpperCase()).join(', ')}</td>
+          <td>${window.durationMinutes} min</td>
+          <td>${window.reason}</td>
+          <td><span class="badge badge-info">${window.status}</span></td>
+          <td>
+            <button class="control-btn danger" onclick="cancelMaintenance('${window.id}')">Cancel</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadOptimizationsData() {
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      const container = document.getElementById('optimizations-list');
+      container.innerHTML = mockData.optimizations.map(opt => `
+        <div class="optimization-item">
+          <div>
+            <strong>${opt.provider.toUpperCase()}</strong> - ${opt.category}
+            <div class="event-details">${opt.reason}</div>
+          </div>
+          <div class="optimization-config">
+            <span class="config-value old">${opt.oldValue}</span>
+            <span class="config-arrow">→</span>
+            <span class="config-value new">${opt.newValue}</span>
+            <span class="badge badge-${opt.status === 'applied' ? 'success' : opt.status === 'reverted' ? 'danger' : 'warning'}">${opt.status}</span>
+            ${opt.results ? `<span class="badge badge-success">+${(opt.results.improvement * 100).toFixed(1)}%</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      const configsContainer = document.getElementById('provider-configs');
+      configsContainer.innerHTML = mockData.providers.map(provider => `
+        <div class="provider-card">
+          <div class="provider-header">
+            <span class="provider-name">${provider.name.toUpperCase()}</span>
+            <span class="badge badge-${provider.status === 'healthy' ? 'success' : 'warning'}">${provider.status}</span>
+          </div>
+          <div class="metrics-grid">
+            <div class="metric">
+              <div class="metric-value">${provider.config.timeoutMs}ms</div>
+              <div class="metric-label">Timeout</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${provider.config.maxRetries}</div>
+              <div class="metric-label">Max Retries</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${(provider.health.successRate * 100).toFixed(1)}%</div>
+              <div class="metric-label">Success Rate</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${provider.health.responseTime}ms</div>
+              <div class="metric-label">Avg Response</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadProvidersData() {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const container = document.getElementById('providers-list');
+      container.innerHTML = mockData.providers.map(provider => `
+        <div class="provider-card">
+          <div class="provider-header">
+            <div>
+              <span class="provider-name">${provider.name.toUpperCase()}</span>
+              <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                ${provider.metrics.requests.toLocaleString()} requests • ${provider.metrics.errors.toLocaleString()} errors
+              </div>
+            </div>
+            <span class="badge badge-${provider.status === 'healthy' ? 'success' : provider.status === 'degraded' ? 'warning' : 'danger'}">${provider.status}</span>
+          </div>
+          <div class="metrics-grid">
+            <div class="metric">
+              <div class="metric-value" style="color: var(--accent-success)">${(provider.health.successRate * 100).toFixed(1)}%</div>
+              <div class="metric-label">Success Rate</div>
+              <div class="progress-bar">
+                <div class="progress-fill success" style="width: ${provider.health.successRate * 100}%"></div>
+              </div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" style="color: ${provider.health.responseTime < 300 ? 'var(--accent-success)' : provider.health.responseTime < 600 ? 'var(--accent-warning)' : 'var(--accent-danger)'}">${provider.health.responseTime}ms</div>
+              <div class="metric-label">Response Time</div>
+              <div class="progress-bar">
+                <div class="progress-fill ${provider.health.responseTime < 300 ? 'success' : provider.health.responseTime < 600 ? 'warning' : 'danger'}" style="width: ${Math.min(100, (provider.health.responseTime / 1000) * 100)}%"></div>
+              </div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${provider.config.timeoutMs}ms</div>
+              <div class="metric-label">Timeout</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${provider.config.maxRetries}</div>
+              <div class="metric-label">Max Retries</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Helper functions
+    function formatTime(date) {
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date);
+    }
+
+    function formatEventTitle(event) {
+      switch (event.category) {
+        case 'healing':
+          return `${event.type.replace('_', ' ').toUpperCase()} - ${event.provider.toUpperCase()}`;
+        case 'scaling':
+          return `${event.type.replace('_', ' ').toUpperCase()}: ${event.fromInstances} → ${event.toInstances} instances`;
+        case 'prediction':
+          return `${event.type.toUpperCase()} predicted for ${event.provider.toUpperCase()}`;
+        case 'optimization':
+          return `${event.category.toUpperCase()} applied to ${event.provider.toUpperCase()}`;
+        default:
+          return 'Unknown event';
+      }
+    }
+
+    // Control functions
+    function refreshData() {
+      loadAllData();
+    }
+
+    function refreshProviderData() {
+      loadProvidersData();
+    }
+
+    function forceHealthCheck() {
+      alert('Force health check triggered');
+    }
+
+    function forceHealing(provider) {
+      alert(`Force healing triggered for ${provider}`);
+    }
+
+    function forceScaleUp() {
+      alert('Scale up triggered');
+    }
+
+    function forceScaleDown() {
+      alert('Scale down triggered');
+    }
+
+    function forcePrediction() {
+      alert('Prediction analysis triggered');
+    }
+
+    function cancelMaintenance(id) {
+      alert(`Maintenance ${id} cancelled`);
+    }
+
+    function forceOptimization() {
+      alert('Optimization cycle triggered');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Africa Payments MCP - Real-time Dashboard</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #2196F3;
+            --danger-color: #f44336;
+            --warning-color: #FF9800;
+            --success-color: #4CAF50;
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-light: #0f3460;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --border-color: #2a2a4a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-light) 100%);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header h1::before {
+            content: '⚡';
+            font-size: 1.75rem;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connected {
+            background: rgba(76, 175, 80, 0.2);
+            color: var(--success-color);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            color: var(--danger-color);
+        }
+
+        .connection-status.connecting {
+            background: rgba(255, 152, 0, 0.2);
+            color: var(--warning-color);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-status.connected .status-dot {
+            background: var(--success-color);
+        }
+
+        .connection-status.disconnected .status-dot {
+            background: var(--danger-color);
+            animation: none;
+        }
+
+        .connection-status.connecting .status-dot {
+            background: var(--warning-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Controls */
+        .controls {
+            padding: 1rem 2rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        input, select, button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            background: var(--primary-color);
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: var(--bg-light);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+        }
+
+        button.secondary:hover {
+            background: var(--border-color);
+        }
+
+        button.danger {
+            background: var(--danger-color);
+        }
+
+        button.danger:hover {
+            background: #d32f2f;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            padding: 1.5rem 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .stat-card.success::before {
+            background: linear-gradient(90deg, var(--success-color), #81C784);
+        }
+
+        .stat-card.danger::before {
+            background: linear-gradient(90deg, var(--danger-color), #E57373);
+        }
+
+        .stat-card.warning::before {
+            background: linear-gradient(90deg, var(--warning-color), #FFB74D);
+        }
+
+        .stat-card.info::before {
+            background: linear-gradient(90deg, var(--secondary-color), #64B5F6);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-change.positive {
+            color: var(--success-color);
+        }
+
+        .stat-change.negative {
+            color: var(--danger-color);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            padding: 0 2rem 1.5rem;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+        }
+
+        /* Transaction Feed */
+        .feed-section {
+            padding: 0 2rem 2rem;
+        }
+
+        .feed-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .feed-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .feed-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .feed-filters {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-light);
+        }
+
+        .filter-btn {
+            padding: 0.375rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-btn.active {
+            background: var(--primary-color);
+        }
+
+        .feed-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .feed-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s ease;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .feed-item:hover {
+            background: var(--bg-light);
+        }
+
+        .feed-item:last-child {
+            border-bottom: none;
+        }
+
+        .feed-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+
+        .feed-icon.success {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .feed-icon.failed {
+            background: rgba(244, 67, 54, 0.2);
+        }
+
+        .feed-icon.pending {
+            background: rgba(255, 152, 0, 0.2);
+        }
+
+        .feed-icon.refund {
+            background: rgba(33, 150, 243, 0.2);
+        }
+
+        .feed-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .feed-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .feed-title-text {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .feed-amount {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .feed-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .feed-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .feed-status.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: var(--success-color);
+        }
+
+        .feed-status.failed {
+            background: rgba(244, 67, 54, 0.2);
+            color: var(--danger-color);
+        }
+
+        .feed-status.pending {
+            background: rgba(255, 152, 0, 0.2);
+            color: var(--warning-color);
+        }
+
+        .feed-status.processing {
+            background: rgba(33, 150, 243, 0.2);
+            color: var(--secondary-color);
+        }
+
+        .feed-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: 1rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--bg-light);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr;
+                padding: 0 1rem 1rem;
+            }
+
+            .feed-section {
+                padding: 0 1rem 1rem;
+            }
+
+            .feed-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 300px;
+            animation: toastIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .toast-message {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>Africa Payments MCP - Real-time Dashboard</h1>
+        <div id="connectionStatus" class="connection-status disconnected">
+            <span class="status-dot"></span>
+            <span class="status-text">Disconnected</span>
+        </div>
+    </header>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" value="ws://localhost:3000" placeholder="ws://localhost:3000">
+        </div>
+        <div class="control-group">
+            <label for="authToken">Auth Token:</label>
+            <input type="password" id="authToken" placeholder="JWT Token">
+        </div>
+        <div class="control-group">
+            <label for="tenantFilter">Tenant:</label>
+            <input type="text" id="tenantFilter" placeholder="All tenants">
+        </div>
+        <button id="connectBtn" onclick="toggleConnection()">Connect</button>
+        <button class="secondary" onclick="clearFeed()">Clear Feed</button>
+        <button class="secondary danger" onclick="simulateTransaction()">Simulate Transaction</button>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card success">
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-value" id="totalTransactions">0</div>
+            <div class="stat-change positive">
+                <span>↑</span> Live
+            </div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-label">Success Rate</div>
+            <div class="stat-value" id="successRate">0%</div>
+            <div class="stat-change positive">
+                <span id="successCount">0</span> successful
+            </div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-label">Failed Rate</div>
+            <div class="stat-value" id="failedRate">0%</div>
+            <div class="stat-change negative">
+                <span id="failedCount">0</span> failed
+            </div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-label">Total Volume</div>
+            <div class="stat-value" id="totalVolume">0</div>
+            <div class="stat-change">
+                <span id="volumeCurrency">USD</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Active Connections</div>
+            <div class="stat-value" id="activeConnections">0</div>
+            <div class="stat-change">
+                WebSocket clients
+            </div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-label">Avg Response Time</div>
+            <div class="stat-value" id="avgResponseTime">0ms</div>
+            <div class="stat-change">
+                Last minute
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Transaction Volume (Last Hour)</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="volumeChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Success vs Failed</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Provider Distribution</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="providerChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Currency Distribution</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="currencyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Feed -->
+    <div class="feed-section">
+        <div class="feed-card">
+            <div class="feed-header">
+                <h3 class="feed-title">🔄 Live Transaction Feed</h3>
+                <div class="feed-actions">
+                    <button class="secondary" onclick="exportFeed()">Export CSV</button>
+                    <button class="secondary" onclick="pauseFeed()" id="pauseBtn">Pause</button>
+                </div>
+            </div>
+            <div class="feed-filters">
+                <button class="filter-btn active" onclick="filterFeed('all')">All</button>
+                <button class="filter-btn" onclick="filterFeed('success')">Success</button>
+                <button class="filter-btn" onclick="filterFeed('failed')">Failed</button>
+                <button class="filter-btn" onclick="filterFeed('pending')">Pending</button>
+                <button class="filter-btn" onclick="filterFeed('refund')">Refunds</button>
+            </div>
+            <div class="feed-list" id="feedList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p>No transactions yet. Connect to see live updates.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== State ====================
+        let socket = null;
+        let isConnected = false;
+        let isPaused = false;
+        let currentFilter = 'all';
+        let transactions = [];
+        let charts = {};
+
+        // Statistics
+        const stats = {
+            total: 0,
+            successful: 0,
+            failed: 0,
+            pending: 0,
+            volume: {}, // currency -> amount
+            providers: {}, // provider -> count
+            responseTimes: [],
+        };
+
+        // Volume data for chart (last 60 minutes)
+        const volumeData = {
+            labels: Array(60).fill('').map((_, i) => {
+                const d = new Date();
+                d.setMinutes(d.getMinutes() - (59 - i));
+                return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            }),
+            data: Array(60).fill(0),
+        };
+
+        // ==================== Initialization ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            updateStats();
+        });
+
+        // ==================== WebSocket Connection ====================
+        function toggleConnection() {
+            if (isConnected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const authToken = document.getElementById('authToken').value;
+
+            updateConnectionStatus('connecting');
+
+            try {
+                // Parse WebSocket URL from server URL
+                const wsUrl = serverUrl.replace('ws://', 'http://').replace('wss://', 'https://');
+                
+                socket = io(wsUrl, {
+                    path: '/socket.io',
+                    transports: ['websocket', 'polling'],
+                    auth: {
+                        token: authToken,
+                    },
+                });
+
+                socket.on('connect', () => {
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+                    showToast('Connected', 'Successfully connected to real-time server', 'success');
+                    
+                    // Subscribe to events
+                    socket.emit('subscribe', {
+                        eventTypes: [
+                            'payment.initiated',
+                            'payment.completed',
+                            'payment.failed',
+                            'payment.pending',
+                            'payment.processing',
+                            'payment.refunded',
+                            'refund.processed',
+                        ],
+                    });
+
+                    // Join tenant room if specified
+                    const tenantFilter = document.getElementById('tenantFilter').value;
+                    if (tenantFilter) {
+                        socket.emit('join-tenant', tenantFilter);
+                    }
+                });
+
+                socket.on('disconnect', (reason) => {
+                    isConnected = false;
+                    updateConnectionStatus('disconnected');
+                    showToast('Disconnected', `Connection closed: ${reason}`, 'error');
+                });
+
+                socket.on('connect_error', (error) => {
+                    updateConnectionStatus('disconnected');
+                    showToast('Connection Error', error.message, 'error');
+                });
+
+                // Payment events
+                socket.on('payment.initiated', handlePaymentEvent);
+                socket.on('payment.completed', handlePaymentEvent);
+                socket.on('payment.failed', handlePaymentEvent);
+                socket.on('payment.pending', handlePaymentEvent);
+                socket.on('payment.processing', handlePaymentEvent);
+                socket.on('payment.refunded', handlePaymentEvent);
+                socket.on('refund.processed', handlePaymentEvent);
+
+                // Connection event
+                socket.on('connection.established', (data) => {
+                    console.log('Connection established:', data);
+                });
+
+                // Update button
+                document.getElementById('connectBtn').textContent = 'Disconnect';
+
+            } catch (error) {
+                updateConnectionStatus('disconnected');
+                showToast('Error', error.message, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            isConnected = false;
+            updateConnectionStatus('disconnected');
+            document.getElementById('connectBtn').textContent = 'Connect';
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `connection-status ${status}`;
+            
+            const statusText = statusEl.querySelector('.status-text');
+            statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        // ==================== Event Handlers ====================
+        function handlePaymentEvent(event) {
+            if (isPaused) return;
+
+            const { type, payload, timestamp } = event;
+            const transaction = payload.transaction;
+
+            if (!transaction) return;
+
+            // Add to transactions list
+            const tx = {
+                id: transaction.id,
+                type: type,
+                status: transaction.status,
+                amount: transaction.amount,
+                provider: transaction.provider,
+                customer: transaction.customer,
+                timestamp: new Date(timestamp),
+                description: transaction.description,
+            };
+
+            transactions.unshift(tx);
+            if (transactions.length > 1000) {
+                transactions.pop();
+            }
+
+            // Update statistics
+            updateStatistics(tx);
+
+            // Update charts
+            updateCharts();
+
+            // Add to feed
+            addToFeed(tx);
+
+            // Show toast for important events
+            if (type === 'payment.completed' || type === 'payment.failed') {
+                showToast(
+                    type === 'payment.completed' ? 'Payment Successful' : 'Payment Failed',
+                    `${transaction.amount.amount} ${transaction.amount.currency} - ${transaction.customer?.name || 'Unknown'}`,
+                    type === 'payment.completed' ? 'success' : 'error'
+                );
+            }
+        }
+
+        function updateStatistics(tx) {
+            stats.total++;
+
+            if (tx.status === 'completed') {
+                stats.successful++;
+            } else if (tx.status === 'failed') {
+                stats.failed++;
+            } else {
+                stats.pending++;
+            }
+
+            // Update volume
+            const currency = tx.amount.currency;
+            stats.volume[currency] = (stats.volume[currency] || 0) + tx.amount.amount;
+
+            // Update provider stats
+            stats.providers[tx.provider] = (stats.providers[tx.provider] || 0) + 1;
+
+            // Update volume chart data
+            const now = new Date();
+            const currentMinute = now.getHours() * 60 + now.getMinutes();
+            const lastIndex = volumeData.data.length - 1;
+            volumeData.data[lastIndex] += tx.amount.amount;
+
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('totalTransactions').textContent = stats.total.toLocaleString();
+            document.getElementById('successCount').textContent = stats.successful.toLocaleString();
+            document.getElementById('failedCount').textContent = stats.failed.toLocaleString();
+
+            const successRate = stats.total > 0 ? Math.round((stats.successful / stats.total) * 100) : 0;
+            const failedRate = stats.total > 0 ? Math.round((stats.failed / stats.total) * 100) : 0;
+
+            document.getElementById('successRate').textContent = `${successRate}%`;
+            document.getElementById('failedRate').textContent = `${failedRate}%`;
+
+            // Calculate total volume in base currency (simplified)
+            const baseCurrency = 'USD';
+            let totalVolume = 0;
+            for (const [currency, amount] of Object.entries(stats.volume)) {
+                // Simplified conversion (in production, use actual rates)
+                const rates = { USD: 1, KES: 0.0077, NGN: 0.00065, GHS: 0.083, UGX: 0.00027, TZS: 0.0004 };
+                const rate = rates[currency] || 1;
+                totalVolume += amount * rate;
+            }
+
+            document.getElementById('totalVolume').textContent = totalVolume.toLocaleString('en-US', {
+                style: 'currency',
+                currency: baseCurrency,
+                maximumFractionDigits: 0,
+            });
+        }
+
+        // ==================== Feed Management ====================
+        function addToFeed(tx) {
+            if (currentFilter !== 'all' && currentFilter !== tx.status) {
+                return;
+            }
+
+            const feedList = document.getElementById('feedList');
+            
+            // Remove empty state if present
+            if (feedList.querySelector('.empty-state')) {
+                feedList.innerHTML = '';
+            }
+
+            const item = createFeedItem(tx);
+            feedList.insertBefore(item, feedList.firstChild);
+
+            // Keep only last 100 items in DOM
+            while (feedList.children.length > 100) {
+                feedList.removeChild(feedList.lastChild);
+            }
+        }
+
+        function createFeedItem(tx) {
+            const div = document.createElement('div');
+            div.className = 'feed-item';
+
+            const iconMap = {
+                completed: '✅',
+                failed: '❌',
+                pending: '⏳',
+                processing: '⚙️',
+                refunded: '↩️',
+            };
+
+            const statusClass = tx.status === 'completed' ? 'success' : 
+                               tx.status === 'failed' ? 'failed' : 
+                               tx.status === 'pending' ? 'pending' : 'processing';
+
+            div.innerHTML = `
+                <div class="feed-icon ${statusClass}">
+                    ${iconMap[tx.status] || '💳'}
+                </div>
+                <div class="feed-content">
+                    <div class="feed-main">
+                        <div class="feed-title-text">
+                            ${tx.description || `${tx.type.replace('.', ' ').toUpperCase()} - ${tx.provider}`}
+                        </div>
+                        <div class="feed-amount">
+                            ${tx.amount.amount.toLocaleString()} ${tx.amount.currency}
+                        </div>
+                    </div>
+                    <div class="feed-meta">
+                        <span class="feed-status ${statusClass}">${tx.status}</span>
+                        <span>👤 ${tx.customer?.name || tx.customer?.phone?.formatted || 'Unknown'}</span>
+                        <span>🏦 ${tx.provider}</span>
+                        <span>🆔 ${tx.id.substring(0, 8)}...</span>
+                    </div>
+                </div>
+                <div class="feed-time">
+                    ${formatTime(tx.timestamp)}
+                </div>
+            `;
+
+            return div;
+        }
+
+        function formatTime(date) {
+            const now = new Date();
+            const diff = now - date;
+
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+            return date.toLocaleDateString();
+        }
+
+        function clearFeed() {
+            transactions = [];
+            document.getElementById('feedList').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <p>No transactions yet. Connect to see live updates.</p>
+                </div>
+            `;
+        }
+
+        function pauseFeed() {
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').textContent = isPaused ? 'Resume' : 'Pause';
+        }
+
+        function filterFeed(filter) {
+            currentFilter = filter;
+
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Re-render feed
+            const feedList = document.getElementById('feedList');
+            feedList.innerHTML = '';
+
+            const filtered = filter === 'all' 
+                ? transactions 
+                : transactions.filter(tx => {
+                    if (filter === 'refund') return tx.type.includes('refund');
+                    return tx.status === filter;
+                });
+
+            if (filtered.length === 0) {
+                feedList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>No ${filter} transactions found.</p>
+                    </div>
+                `;
+            } else {
+                filtered.slice(0, 100).forEach(tx => {
+                    feedList.appendChild(createFeedItem(tx));
+                });
+            }
+        }
+
+        function exportFeed() {
+            const csv = [
+                ['ID', 'Type', 'Status', 'Amount', 'Currency', 'Provider', 'Customer', 'Timestamp'].join(','),
+                ...transactions.map(tx => [
+                    tx.id,
+                    tx.type,
+                    tx.status,
+                    tx.amount.amount,
+                    tx.amount.currency,
+                    tx.provider,
+                    tx.customer?.name || tx.customer?.phone?.formatted || 'Unknown',
+                    tx.timestamp.toISOString(),
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Export Complete', 'Transaction feed exported to CSV', 'success');
+        }
+
+        // ==================== Charts ====================
+        function initCharts() {
+            Chart.defaults.color = '#a0a0a0';
+            Chart.defaults.borderColor = '#2a2a4a';
+
+            // Volume Chart
+            const volumeCtx = document.getElementById('volumeChart').getContext('2d');
+            charts.volume = new Chart(volumeCtx, {
+                type: 'line',
+                data: {
+                    labels: volumeData.labels,
+                    datasets: [{
+                        label: 'Transaction Volume',
+                        data: volumeData.data,
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { beginAtZero: true },
+                    },
+                },
+            });
+
+            // Status Chart
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            charts.status = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Successful', 'Failed', 'Pending'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#4CAF50', '#f44336', '#FF9800'],
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                },
+            });
+
+            // Provider Chart
+            const providerCtx = document.getElementById('providerChart').getContext('2d');
+            charts.provider = new Chart(providerCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Transactions',
+                        data: [],
+                        backgroundColor: '#2196F3',
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                    },
+                },
+            });
+
+            // Currency Chart
+            const currencyCtx = document.getElementById('currencyChart').getContext('2d');
+            charts.currency = new Chart(currencyCtx, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#f44336', '#9C27B0'],
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                },
+            });
+
+            // Shift volume data every minute
+            setInterval(() => {
+                volumeData.data.shift();
+                volumeData.data.push(0);
+                
+                const now = new Date();
+                volumeData.labels.shift();
+                volumeData.labels.push(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+                
+                charts.volume.update('none');
+            }, 60000);
+        }
+
+        function updateCharts() {
+            // Update status chart
+            charts.status.data.datasets[0].data = [
+                stats.successful,
+                stats.failed,
+                stats.pending,
+            ];
+            charts.status.update('none');
+
+            // Update provider chart
+            const providers = Object.entries(stats.providers)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            charts.provider.data.labels = providers.map(p => p[0]);
+            charts.provider.data.datasets[0].data = providers.map(p => p[1]);
+            charts.provider.update('none');
+
+            // Update currency chart
+            const currencies = Object.entries(stats.volume)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            charts.currency.data.labels = currencies.map(c => c[0]);
+            charts.currency.data.datasets[0].data = currencies.map(c => c[1]);
+            charts.currency.update('none');
+
+            // Volume chart is updated by the interval
+            charts.volume.update('none');
+        }
+
+        // ==================== Utilities ====================
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        function simulateTransaction() {
+            const providers = ['mpesa', 'paystack', 'mtn_momo', 'airtel_money', 'wave'];
+            const currencies = ['KES', 'NGN', 'GHS', 'UGX', 'TZS'];
+            const statuses = ['completed', 'completed', 'completed', 'completed', 'failed', 'pending'];
+            
+            const mockEvent = {
+                type: 'payment.' + (Math.random() > 0.5 ? 'completed' : 'initiated'),
+                payload: {
+                    transaction: {
+                        id: 'tx_' + Math.random().toString(36).substring(2, 15),
+                        status: statuses[Math.floor(Math.random() * statuses.length)],
+                        amount: {
+                            amount: Math.floor(Math.random() * 100000) + 100,
+                            currency: currencies[Math.floor(Math.random() * currencies.length)],
+                        },
+                        provider: providers[Math.floor(Math.random() * providers.length)],
+                        customer: {
+                            name: 'Test Customer',
+                            phone: { formatted: '+254712345678' },
+                        },
+                        description: 'Simulated transaction',
+                    },
+                },
+                timestamp: new Date().toISOString(),
+            };
+
+            handlePaymentEvent(mockEvent);
+            showToast('Simulation', 'Test transaction generated', 'info');
+        }
+    </script>
+</body>
+</html>

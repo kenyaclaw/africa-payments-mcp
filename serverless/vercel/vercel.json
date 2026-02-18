@@ -1,0 +1,75 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "name": "africa-payments-mcp",
+  "buildCommand": "cd .. && npm run build",
+  "outputDirectory": "../build",
+  "framework": null,
+  "regions": ["iad1", "cdg1", "bom1", "hkg1"],
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/payments/health",
+      "dest": "/api/health.ts"
+    },
+    {
+      "src": "/api/payments/tools",
+      "dest": "/api/payments.ts"
+    },
+    {
+      "src": "/api/payments/invoke",
+      "dest": "/api/payments.ts"
+    },
+    {
+      "src": "/api/payments/webhook/(.*)",
+      "dest": "/api/payments.ts"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/payments.ts"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "status": 404
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, X-API-Key, X-Idempotency-Key"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/payments/cleanup",
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info",
+    "DEFAULT_CURRENCY": "KES",
+    "DEFAULT_COUNTRY": "KE",
+    "DEFAULT_PROVIDER": "mpesa"
+  }
+}

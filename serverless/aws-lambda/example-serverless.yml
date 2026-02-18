@@ -1,0 +1,191 @@
+# Africa Payments MCP - Serverless Framework Example
+# This is an alternative deployment option using the Serverless Framework
+
+service: africa-payments-mcp
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'production'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 512
+  timeout: 30
+  
+  # IAM permissions
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+          Resource:
+            - !GetAtt ApiKeyTable.Arn
+            - !GetAtt IdempotencyTable.Arn
+            - !GetAtt CircuitBreakerTable.Arn
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource: !Ref ConfigSecret
+  
+  # Environment variables
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    LOG_LEVEL: info
+    CONFIG_SECRET_ARN: !Ref ConfigSecret
+    MPESA_ENABLED: ${env:MPESA_ENABLED, 'false'}
+    PAYSTACK_ENABLED: ${env:PAYSTACK_ENABLED, 'false'}
+    INTASEND_ENABLED: ${env:INTASEND_ENABLED, 'false'}
+    MTN_MOMO_ENABLED: ${env:MTN_MOMO_ENABLED, 'false'}
+    AIRTEL_MONEY_ENABLED: ${env:AIRTEL_MONEY_ENABLED, 'false'}
+    CACHE_ENABLED: 'true'
+    IDEMPOTENCY_ENABLED: 'true'
+    CIRCUIT_BREAKER_ENABLED: 'true'
+    API_KEY_TABLE: !Ref ApiKeyTable
+    IDEMPOTENCY_TABLE: !GetAtt IdempotencyTable.Name
+    CIRCUIT_BREAKER_TABLE: !GetAtt CircuitBreakerTable.Name
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    target: node20
+    platform: node
+    sourcemap: true
+    
+  serverless-offline:
+    httpPort: 3000
+    lambdaPort: 3002
+
+# Lambda functions
+functions:
+  api:
+    handler: src/index.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+          private: true
+      - http:
+          path: /
+          method: ANY
+          cors: true
+          private: true
+    
+    # Provisioned concurrency for production
+    provisionedConcurrency: ${self:custom.provisionedConcurrency, 0}
+
+  authorizer:
+    handler: src/authorizer.handler
+
+# Resources
+resources:
+  Resources:
+    ApiKeyTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: apiKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: apiKey
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
+    IdempotencyTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: key
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
+    CircuitBreakerTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: provider
+            AttributeType: S
+        KeySchema:
+          - AttributeName: provider
+            KeyType: HASH
+
+    ConfigSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: africa-payments-mcp/config-${self:provider.stage}
+        Description: Configuration for Africa Payments MCP
+        SecretString: '{"placeholder": "Update with actual config"}'
+
+    # CloudWatch Alarm for errors
+    ErrorAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Condition: IsProduction
+      Properties:
+        AlarmName: africa-payments-errors-${self:provider.stage}
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 10
+        ComparisonOperator: GreaterThanThreshold
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:service}-${self:provider.stage}-api
+
+  Conditions:
+    IsProduction:
+      Fn::Equals:
+        - ${self:provider.stage}
+        - production
+
+  Outputs:
+    ApiUrl:
+      Description: API Gateway endpoint URL
+      Value:
+        Fn::Join:
+          - ''
+          - - https://
+            - !Ref ApiGatewayRestApi
+            - '.execute-api.'
+            - ${self:provider.region}
+            - '.amazonaws.com/'
+            - ${self:provider.stage}
+
+# Package configuration
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!src/**'
+    - '!tests/**'
+    - '!.git/**'
+    - '!.env'
+    - 'build/**'

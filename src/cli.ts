@@ -14,6 +14,8 @@ import readline from 'readline';
 import { createServer } from './server.js';
 import { startPlayground } from './playground.js';
 import { ConfigManager } from './utils/config.js';
+import { createAgentCommands } from './agents/cli.js';
+import { AgentSwarmIntegration } from './agents/integration.js';
 import { Logger } from './utils/logger.js';
 import {
   parseNaturalLanguageConfig,
@@ -1166,6 +1168,11 @@ program
     }
   });
 
+// Agent swarm command
+const logger = new Logger('info');
+const agentSwarm = new AgentSwarmIntegration(logger);
+program.addCommand(createAgentCommands(agentSwarm, logger));
+
 // Main server command (default)
 program
   .name('africa-payments-mcp')
@@ -1198,7 +1205,8 @@ program
       const server = await createServer({
         configPath: options.config,
         port: options.port,
-        logLevel: options.logLevel
+        logLevel: options.logLevel,
+        agentSwarm,
       });
       
       await server.start();

@@ -1,0 +1,54 @@
+version = 0.1
+[default]
+[default.global.parameters]
+stack_name = "africa-payments-mcp"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+confirm_changeset = true
+resolve_s3 = true
+s3_prefix = "africa-payments-mcp"
+region = "us-east-1"
+parameter_overrides = [
+  "Environment=production",
+  "MpesaEnabled=false",
+  "PaystackEnabled=false",
+  "IntasendEnabled=false",
+  "MtnMomoEnabled=false",
+  "AirtelMoneyEnabled=false",
+  "UseSecretsManager=false"
+]
+
+[default.sync.parameters]
+watch = true
+
+[default.local_invoke.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[production]
+[production.deploy.parameters]
+stack_name = "africa-payments-mcp-production"
+region = "us-east-1"
+parameter_overrides = [
+  "Environment=production",
+  "UseSecretsManager=true"
+]
+
+[staging]
+[staging.deploy.parameters]
+stack_name = "africa-payments-mcp-staging"
+region = "us-east-1"
+parameter_overrides = [
+  "Environment=staging",
+  "UseSecretsManager=true"
+]

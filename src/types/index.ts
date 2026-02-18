@@ -177,6 +177,10 @@ export interface ServerConfig {
     orange_money?: OrangeMoneyConfig;
     chipper_cash?: ChipperCashConfig;
     wave?: WaveConfig;
+    bitcoin_lightning?: BitcoinLightningConfig;
+    usdc_stellar?: UsdcStellarConfig;
+    celo?: CeloConfig;
+    mpesa_crypto_bridge?: MpesaCryptoBridgeConfig;
   };
   defaults: {
     currency: string;
@@ -246,6 +250,39 @@ export interface WaveConfig extends ProviderConfig {
   apiSecret: string;
   merchantId: string;
   environment: 'sandbox' | 'production';
+}
+
+// ==================== Crypto Provider Configs ====================
+
+export interface BitcoinLightningConfig extends ProviderConfig {
+  nodeType: 'lnd' | 'core_lightning';
+  nodeUrl: string;
+  macaroonHex?: string; // For LND
+  rune?: string; // For Core Lightning
+  tlsCert?: string; // TLS certificate for secure connection
+}
+
+export interface UsdcStellarConfig extends ProviderConfig {
+  sourceAccount: string; // Stellar public key
+  secretKey?: string; // For signing transactions (optional, can use external signer)
+  horizonUrl?: string; // Defaults to mainnet
+  useAnchor?: boolean; // Use SEP-6 anchor for on/off-ramp
+  anchorUrl?: string; // Anchor server URL
+}
+
+export interface CeloConfig extends ProviderConfig {
+  fromAddress: string; // Celo address
+  privateKey?: string; // For signing transactions
+  rpcUrl?: string; // Defaults to forno.celo.org
+  useValora?: boolean; // Generate Valora deep links
+}
+
+export interface MpesaCryptoBridgeConfig extends ProviderConfig {
+  bridgeProvider: 'kotani' | 'yellowcard' | 'custom';
+  apiKey: string;
+  apiSecret?: string;
+  baseUrl?: string;
+  webhookSecret?: string; // For verifying webhooks
 }
 
 // ==================== Error Types ====================

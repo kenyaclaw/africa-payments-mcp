@@ -88,6 +88,32 @@ export type {
   WaveRefundData,
 } from './handlers/wave.js';
 
+// Crypto Handler Types
+export type {
+  LightningInvoiceSettledEvent,
+  LightningPaymentSentEvent,
+  LndInvoiceEvent,
+} from './handlers/bitcoin-lightning.js';
+
+export type {
+  StellarPaymentEvent,
+  AnchorTransactionEvent,
+  StellarEffectEvent,
+} from './handlers/usdc-stellar.js';
+
+export type {
+  CeloTransferEvent,
+  CeloContractEvent,
+  CeloBlockscoutWebhook,
+  ValoraPaymentNotification,
+} from './handlers/celo.js';
+
+export type {
+  KotaniPayWebhookEvent,
+  YellowCardWebhookEvent,
+  BridgePaymentNotification,
+} from './handlers/mpesa-crypto-bridge.js';
+
 // Handler Classes
 export { MpesaWebhookHandler, createMpesaWebhookHandler } from './handlers/mpesa.js';
 export { PaystackWebhookHandler, createPaystackWebhookHandler } from './handlers/paystack.js';
@@ -96,3 +122,9 @@ export { IntaSendWebhookHandler, createIntaSendWebhookHandler } from './handlers
 export { OrangeMoneyWebhookHandler, createOrangeMoneyWebhookHandler } from './handlers/orange-money.js';
 export { ChipperCashWebhookHandler, createChipperCashWebhookHandler } from './handlers/chipper-cash.js';
 export { WaveWebhookHandler, createWaveWebhookHandler } from './handlers/wave.js';
+
+// Crypto Handler Classes
+export { BitcoinLightningWebhookHandler, createBitcoinLightningWebhookHandler } from './handlers/bitcoin-lightning.js';
+export { UsdcStellarWebhookHandler, createUsdcStellarWebhookHandler } from './handlers/usdc-stellar.js';
+export { CeloWebhookHandler, createCeloWebhookHandler } from './handlers/celo.js';
+export { MpesaCryptoBridgeWebhookHandler, createMpesaCryptoBridgeWebhookHandler } from './handlers/mpesa-crypto-bridge.js';

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "africa-payments": {
+      "command": "node",
+      "args": [
+        "/path/to/africa-payments-mcp/build/mcp-server.js",
+        "/path/to/your/config.json"
+      ],
+      "env": {
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}

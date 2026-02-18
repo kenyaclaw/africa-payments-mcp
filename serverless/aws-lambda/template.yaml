@@ -1,0 +1,286 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Africa Payments MCP Serverless
+  
+  Model Context Protocol server for African payment providers (M-Pesa, Paystack, MTN MoMo, etc.)
+
+# Global settings
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        NODE_ENV: production
+        LOG_LEVEL: info
+        CACHE_ENABLED: 'true'
+        IDEMPOTENCY_ENABLED: 'true'
+        CIRCUIT_BREAKER_ENABLED: 'true'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Deployment environment
+
+  MpesaEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable M-Pesa provider
+
+  PaystackEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable Paystack provider
+
+  IntasendEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable IntaSend provider
+
+  MtnMomoEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable MTN MoMo provider
+
+  AirtelMoneyEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable Airtel Money provider
+
+  UseSecretsManager:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Use AWS Secrets Manager for configuration
+
+Conditions:
+  UseSecrets: !Equals [!Ref UseSecretsManager, 'true']
+  IsProduction: !Equals [!Ref Environment, 'production']
+
+Resources:
+  # Lambda Function
+  AfricaPaymentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'africa-payments-mcp-${Environment}'
+      Description: Africa Payments MCP Server
+      Handler: build/index.handler
+      CodeUri: ./
+      AutoPublishAlias: live
+      ProvisionedConcurrencyConfig:
+        !If
+          - IsProduction
+          - ProvisionedConcurrentExecutions: 5
+          - !Ref AWS::NoValue
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+            - !If
+              - UseSecrets
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref ConfigSecret
+              - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+          CONFIG_SECRET_ARN: !If [UseSecrets, !Ref ConfigSecret, '']
+          MPESA_ENABLED: !Ref MpesaEnabled
+          PAYSTACK_ENABLED: !Ref PaystackEnabled
+          INTASEND_ENABLED: !Ref IntasendEnabled
+          MTN_MOMO_ENABLED: !Ref MtnMomoEnabled
+          AIRTEL_MONEY_ENABLED: !Ref AirtelMoneyEnabled
+      Events:
+        ApiRoot:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+            RestApiId: !Ref AfricaPaymentsApi
+        ApiProxy:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+            RestApiId: !Ref AfricaPaymentsApi
+
+  # API Gateway
+  AfricaPaymentsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub 'africa-payments-mcp-${Environment}'
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Requested-With'"
+        AllowOrigin: "'https://*'"
+        MaxAge: "'600'"
+      Auth:
+        DefaultAuthorizer: ApiKeyAuthorizer
+        ApiKeyRequired: true
+        Authorizers:
+          ApiKeyAuthorizer:
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
+            Identity:
+              Header: x-api-key
+              ValidationExpression: ^[a-zA-Z0-9]{32,64}$
+
+  # Lambda Authorizer for API Key validation
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'africa-payments-authorizer-${Environment}'
+      Handler: build/authorizer.handler
+      CodeUri: ./
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          API_KEY_TABLE: !Ref ApiKeyTable
+
+  # DynamoDB Table for API Keys
+  ApiKeyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'africa-payments-apikeys-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: apiKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: apiKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProduction, true, false]
+
+  # DynamoDB Table for Idempotency Keys
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'africa-payments-idempotency-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: key
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # DynamoDB Table for Circuit Breaker
+  CircuitBreakerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'africa-payments-circuit-breaker-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: provider
+          AttributeType: S
+      KeySchema:
+        - AttributeName: provider
+          KeyType: HASH
+
+  # Secrets Manager (optional)
+  ConfigSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: UseSecrets
+    Properties:
+      Name: !Sub 'africa-payments-mcp/config-${Environment}'
+      Description: Configuration for Africa Payments MCP
+      SecretString: '{"placeholder": "Update with actual config"}'
+
+  # CloudWatch Log Group with retention
+  FunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/africa-payments-mcp-${Environment}'
+      RetentionInDays: !If [IsProduction, 30, 7]
+
+  # CloudWatch Alarms
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub 'africa-payments-errors-${Environment}'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AfricaPaymentsFunction
+
+  ThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub 'africa-payments-throttles-${Environment}'
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AfricaPaymentsFunction
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${AfricaPaymentsApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/'
+  
+  FunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt AfricaPaymentsFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionArn'
+  
+  ApiKeyTable:
+    Description: DynamoDB Table for API Keys
+    Value: !Ref ApiKeyTable
+  
+  IdempotencyTable:
+    Description: DynamoDB Table for Idempotency Keys
+    Value: !Ref IdempotencyTable

@@ -56,9 +56,53 @@ Africa Payments MCP supports all major payment providers across the African cont
   </div>
 </div>
 
+## 🚀 Crypto & Blockchain Providers
+
+### [Bitcoin Lightning](./bitcoin-lightning.md) <Badge type="tip" text="New" />
+
+<div class="provider-card">
+  <div class="provider-icon" style="background: #f7931a;">⚡</div>
+  <div>
+    <strong>Bitcoin Lightning Network</strong><br/>
+    Instant, low-fee Bitcoin payments. Perfect for micropayments and cross-border transfers. Available globally.
+  </div>
+</div>
+
+### [USDC on Stellar](./usdc-stellar.md) <Badge type="tip" text="New" />
+
+<div class="provider-card">
+  <div class="provider-icon" style="background: #2775ca;">💵</div>
+  <div>
+    <strong>USDC on Stellar</strong><br/>
+    Dollar-backed stablecoin on Stellar blockchain. 3-5 second settlement, < $0.001 fees. Perfect for stable value transfers.
+  </div>
+</div>
+
+### [Celo](./celo.md) <Badge type="tip" text="New" />
+
+<div class="provider-card">
+  <div class="provider-icon" style="background: #fcff52; color: #000;">🌱</div>
+  <div>
+    <strong>Celo Blockchain</strong><br/>
+    Mobile-first blockchain with cUSD stablecoin. Ultra-low fees, phone number addressing. Designed for emerging markets.
+  </div>
+</div>
+
+### [M-Pesa Bridge](./mpesa-crypto-bridge.md) <Badge type="tip" text="New" />
+
+<div class="provider-card">
+  <div class="provider-icon" style="background: linear-gradient(135deg, #00a650 50%, #2775ca 50%);">🌉</div>
+  <div>
+    <strong>M-Pesa Crypto Bridge</strong><br/>
+    Convert between M-Pesa and crypto (USDC, USDT). On-ramp and off-ramp via Kotani Pay or Yellow Card. The future of African payments!
+  </div>
+</div>
+
 </div>
 
 ## Provider Comparison
+
+### Traditional Payment Providers
 
 | Feature | M-Pesa | Paystack | MTN MoMo | IntaSend | Airtel Money |
 |---------|--------|----------|----------|----------|--------------|
@@ -69,6 +113,18 @@ Africa Payments MCP supports all major payment providers across the African cont
 | Payouts/B2B | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Webhooks | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Sandbox | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+### Crypto & Blockchain Providers
+
+| Feature | Bitcoin Lightning | USDC Stellar | Celo | M-Pesa Bridge |
+|---------|-------------------|--------------|------|---------------|
+| Stable Value | ❌ (BTC fluctuates) | ✅ | ✅ | ✅ |
+| Settlement Time | Instant | 3-5 sec | 5 sec | 5-10 min |
+| Transaction Fee | ~$0.001 | ~$0.0001 | ~$0.001 | 2-3% |
+| Global Reach | ✅ | ✅ | ✅ | ✅ |
+| Mobile Optimized | ⚠️ | ⚠️ | ✅ | ✅ |
+| Fiat On/Off Ramp | ❌ | ⚠️ | ⚠️ | ✅ |
+| Webhooks | ✅ | ✅ | ✅ | ✅ |
 
 ## Coverage Map
 
@@ -122,6 +178,32 @@ Consider using multiple providers:
   }
 }
 ```
+
+### For Cross-Border Remittances
+
+Crypto providers offer the cheapest and fastest international transfers:
+
+1. **M-Pesa Bridge** - Easiest for M-Pesa users
+2. **USDC Stellar** - Lowest fees, stable value
+3. **Bitcoin Lightning** - Instant, best for small amounts
+4. **Celo** - Mobile-optimized, great UX with Valora
+
+### For Stable Value Savings
+
+Protect against local currency inflation:
+
+1. **USDC Stellar** - Dollar-backed, regulated
+2. **Celo cUSD** - Mobile-first, easy to use
+3. **M-Pesa Bridge** - Easy on/off ramp to M-Pesa
+
+### For Merchant Payments
+
+Accept global payments:
+
+1. **Bitcoin Lightning** - Instant, low fees
+2. **USDC Stellar** - Stable, widely accepted
+3. **Celo** - Great mobile UX
+4. **M-Pesa Bridge** - Settle to M-Pesa
 
 ## Provider Credentials
 

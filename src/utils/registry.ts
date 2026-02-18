@@ -8,11 +8,11 @@ import { Logger } from './logger.js';
 export class ProviderRegistry {
   private providers = new Map<string, PaymentProvider>();
 
-  constructor(private logger: Logger) {}
+  constructor(private logger?: Logger) {}
 
   register(name: string, provider: PaymentProvider): void {
     this.providers.set(name, provider);
-    this.logger.info(`Registered provider: ${name}`);
+    this.logger?.info(`Registered provider: ${name}`);
   }
 
   getProvider(name: string): PaymentProvider | undefined {
@@ -32,16 +32,30 @@ export class ProviderRegistry {
   }
 
   async initializeAll(): Promise<void> {
-    for (const [name, provider] of this.providers) {
+    for (const [name, provider] of this.providers.entries()) {
       try {
-        this.logger.info(`Initializing provider: ${name}`);
+        this.logger?.info(`Initializing provider: ${name}`);
         await provider.initialize({});
-        this.logger.info(`✅ Provider ${name} initialized`);
+        this.logger?.info(`✅ Provider ${name} initialized`);
       } catch (error) {
-        this.logger.error(`Failed to initialize provider ${name}: ${error}`);
+        this.logger?.error(`Failed to initialize provider ${name}: ${error}`);
         // Remove failed provider
         this.providers.delete(name);
       }
     }
   }
+}
+
+// Global provider registry
+let globalProviderRegistry: ProviderRegistry | null = null;
+
+export function getGlobalProviderRegistry(logger?: Logger): ProviderRegistry {
+  if (!globalProviderRegistry) {
+    globalProviderRegistry = new ProviderRegistry(logger);
+  }
+  return globalProviderRegistry;
+}
+
+export function setGlobalProviderRegistry(registry: ProviderRegistry): void {
+  globalProviderRegistry = registry;
 }

@@ -1,0 +1,10 @@
+[
+  {
+    "key": "apikey:dev-test-key-001",
+    "value": "{\"tenantId\":\"dev-tenant\",\"name\":\"Development Test Key\",\"permissions\":[\"payments:read\",\"payments:write\",\"webhooks:read\"],\"rateLimit\":1000,\"active\":true}"
+  },
+  {
+    "key": "apikey:readonly-key-001",
+    "value": "{\"tenantId\":\"readonly-tenant\",\"name\":\"Read Only Key\",\"permissions\":[\"payments:read\"],\"rateLimit\":500,\"active\":true}"
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "name": "africa-payments-mcp-rn-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "build:android": "cd android && ./gradlew assembleDebug",
+    "build:ios": "cd ios && xcodebuild -workspace AfricaPaymentsMcpRnExample.xcworkspace -scheme AfricaPaymentsMcpRnExample -configuration Debug -sdk iphonesimulator"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "africa-payments-mcp-rn": "file:.."
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "15.0.1",
+    "@react-native-community/cli-platform-android": "15.0.1",
+    "@react-native-community/cli-platform-ios": "15.0.1",
+    "@react-native/babel-preset": "0.76.5",
+    "@react-native/metro-config": "0.76.5",
+    "@react-native/typescript-config": "0.76.5",
+    "@types/react": "^18.2.6",
+    "@types/react-test-renderer": "^18.0.0",
+    "typescript": "5.0.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

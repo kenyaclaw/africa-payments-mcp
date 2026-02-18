@@ -1,0 +1,32 @@
+{
+  "name": "africa-payments-mcp-lambda",
+  "version": "0.1.0",
+  "description": "AWS Lambda deployment for Africa Payments MCP",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build",
+    "package": "npm run build && npm run zip",
+    "zip": "cd build && zip -r ../function.zip . && cd ..",
+    "deploy": "npm run package && sam deploy --guided",
+    "deploy:ci": "npm run package && sam deploy --no-confirm-changeset --no-fail-on-empty-changeset",
+    "local": "sam local start-api",
+    "invoke": "sam local invoke AfricaPaymentsFunction",
+    "logs": "aws logs tail /aws/lambda/africa-payments-mcp --follow",
+    "test": "node --test build/**/*.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.450.0",
+    "@aws-sdk/lib-storage": "^3.450.0",
+    "aws-lambda": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.131",
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

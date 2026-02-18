@@ -1,0 +1,39 @@
+{
+  "name": "com.africapayments.mcp",
+  "version": "1.0.0",
+  "displayName": "Africa Payments MCP",
+  "description": "Africa Payments MCP SDK for Unity - enabling mobile money payments across Africa",
+  "unity": "2021.3",
+  "documentationUrl": "https://docs.africapayments.com/unity",
+  "changelogUrl": "https://github.com/africa-payments/africa-payments-mcp-unity/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/africa-payments/africa-payments-mcp-unity/blob/main/LICENSE",
+  "author": {
+    "name": "Africa Payments",
+    "email": "dev@africapayments.com",
+    "url": "https://africapayments.com"
+  },
+  "dependencies": {
+    "com.unity.textmeshpro": "3.0.0"
+  },
+  "keywords": [
+    "payments",
+    "africa",
+    "mpesa",
+    "mobile-money",
+    "mcp",
+    "iap"
+  ],
+  "category": "Services",
+  "samples": [
+    {
+      "displayName": "Basic Payment Example",
+      "description": "Example scene showing basic payment flow",
+      "path": "Examples/Basic"
+    },
+    {
+      "displayName": "Unity IAP Integration",
+      "description": "Example showing Unity IAP integration",
+      "path": "Examples/IAP"
+    }
+  ]
+}

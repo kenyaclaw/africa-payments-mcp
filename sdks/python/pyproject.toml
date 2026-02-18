@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "africa-payments-mcp"
+version = "1.0.0"
+description = "Africa Payments MCP SDK for Python - Async client for mobile money payments"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Africa Payments", email = "dev@africapayments.com"}
+]
+keywords = ["payments", "africa", "mpesa", "mobile-money", "mcp", "api"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Payments",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "httpx>=0.24.0",
+    "pydantic>=2.0.0",
+    "typing-extensions>=4.0.0",
+]
+
+[project.optional-dependencies]
+django = [
+    "django>=3.2",
+    "djangorestframework>=3.14.0",
+]
+flask = [
+    "flask>=2.0.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "respx>=0.20.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/africa-payments/africa-payments-mcp-python"
+Documentation = "https://docs.africapayments.com/python"
+Repository = "https://github.com/africa-payments/africa-payments-mcp-python"
+Issues = "https://github.com/africa-payments/africa-payments-mcp-python/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["africa_payments_mcp"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--cov=africa_payments_mcp --cov-report=term-missing"

@@ -1,0 +1,188 @@
+{
+  "name": "Africa Payments MCP",
+  "description": "Model Context Protocol server for African payment providers (M-Pesa, Paystack, MTN MoMo, etc.)",
+  "repository": "https://github.com/kenyaclaw/africa-payments-mcp",
+  "logo": "https://raw.githubusercontent.com/kenyaclaw/africa-payments-mcp/main/assets/logo.png",
+  "keywords": [
+    "mcp",
+    "payments",
+    "africa",
+    "mpesa",
+    "paystack",
+    "mtn-momo",
+    "mobile-money",
+    "fintech"
+  ],
+  "website": "https://github.com/kenyaclaw/africa-payments-mcp",
+  "success_url": "/health",
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level",
+      "value": "info"
+    },
+    "DEFAULT_CURRENCY": {
+      "description": "Default currency code",
+      "value": "KES"
+    },
+    "DEFAULT_COUNTRY": {
+      "description": "Default country code",
+      "value": "KE"
+    },
+    "DEFAULT_PROVIDER": {
+      "description": "Default payment provider",
+      "value": "mpesa"
+    },
+    "MPESA_ENABLED": {
+      "description": "Enable M-Pesa provider",
+      "value": "false"
+    },
+    "MPESA_SANDBOX": {
+      "description": "Use M-Pesa sandbox",
+      "value": "true"
+    },
+    "MPESA_CONSUMER_KEY": {
+      "description": "M-Pesa Consumer Key (optional)",
+      "required": false
+    },
+    "MPESA_CONSUMER_SECRET": {
+      "description": "M-Pesa Consumer Secret (optional)",
+      "required": false
+    },
+    "MPESA_PASSKEY": {
+      "description": "M-Pesa Passkey (optional)",
+      "required": false
+    },
+    "MPESA_SHORT_CODE": {
+      "description": "M-Pesa Short Code (optional)",
+      "required": false
+    },
+    "PAYSTACK_ENABLED": {
+      "description": "Enable Paystack provider",
+      "value": "false"
+    },
+    "PAYSTACK_SECRET_KEY": {
+      "description": "Paystack Secret Key (optional)",
+      "required": false
+    },
+    "PAYSTACK_PUBLIC_KEY": {
+      "description": "Paystack Public Key (optional)",
+      "required": false
+    },
+    "INTASEND_ENABLED": {
+      "description": "Enable IntaSend provider",
+      "value": "false"
+    },
+    "INTASEND_PUBLIC_KEY": {
+      "description": "IntaSend Public Key (optional)",
+      "required": false
+    },
+    "INTASEND_SECRET_KEY": {
+      "description": "IntaSend Secret Key (optional)",
+      "required": false
+    },
+    "MTN_MOMO_ENABLED": {
+      "description": "Enable MTN MoMo provider",
+      "value": "false"
+    },
+    "MTN_MOMO_API_USER": {
+      "description": "MTN MoMo API User (optional)",
+      "required": false
+    },
+    "MTN_MOMO_API_KEY": {
+      "description": "MTN MoMo API Key (optional)",
+      "required": false
+    },
+    "MTN_MOMO_SUBSCRIPTION_KEY": {
+      "description": "MTN MoMo Subscription Key (optional)",
+      "required": false
+    },
+    "AIRTEL_MONEY_ENABLED": {
+      "description": "Enable Airtel Money provider",
+      "value": "false"
+    },
+    "AIRTEL_MONEY_CLIENT_ID": {
+      "description": "Airtel Money Client ID (optional)",
+      "required": false
+    },
+    "AIRTEL_MONEY_CLIENT_SECRET": {
+      "description": "Airtel Money Client Secret (optional)",
+      "required": false
+    },
+    "ENCRYPTION_KEY": {
+      "description": "Encryption key for sensitive data",
+      "generator": "secret"
+    },
+    "WEBHOOK_SECRET": {
+      "description": "Secret for webhook validation",
+      "generator": "secret"
+    },
+    "API_KEYS": {
+      "description": "Comma-separated list of valid API keys",
+      "generator": "secret"
+    },
+    "CACHE_ENABLED": {
+      "description": "Enable caching",
+      "value": "true"
+    },
+    "IDEMPOTENCY_ENABLED": {
+      "description": "Enable idempotency",
+      "value": "true"
+    },
+    "CIRCUIT_BREAKER_ENABLED": {
+      "description": "Enable circuit breaker",
+      "value": "true"
+    },
+    "RATE_LIMIT_REQUESTS": {
+      "description": "Rate limit requests per window",
+      "value": "100"
+    },
+    "RATE_LIMIT_WINDOW": {
+      "description": "Rate limit window in milliseconds",
+      "value": "60000"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-1x"
+    }
+  },
+  "image": "heroku/nodejs",
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini",
+      "as": "DATABASE"
+    },
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
+    },
+    {
+      "plan": "papertrail:choklad"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "npm run migrate || true"
+  },
+  "environments": {
+    "test": {
+      "env": {
+        "NODE_ENV": "test",
+        "MPESA_ENABLED": "false",
+        "PAYSTACK_ENABLED": "false"
+      },
+      "addons": [
+        "heroku-postgresql:in-dyno"
+      ]
+    }
+  }
+}

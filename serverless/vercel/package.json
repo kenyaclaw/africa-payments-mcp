@@ -1,0 +1,34 @@
+{
+  "name": "africa-payments-mcp-vercel",
+  "version": "0.1.0",
+  "description": "Vercel Edge Functions deployment for Africa Payments MCP",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "deploy": "vercel deploy",
+    "deploy:prod": "vercel deploy --prod",
+    "env:pull": "vercel env pull .env.local",
+    "env:add": "vercel env add"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@vercel/edge-config": "^1.0.0",
+    "@vercel/kv": "^1.0.0",
+    "next": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/react": "^18.2.0",
+    "eslint": "^8.50.0",
+    "eslint-config-next": "^14.0.0",
+    "typescript": "^5.2.0",
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

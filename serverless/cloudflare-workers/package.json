@@ -1,0 +1,42 @@
+{
+  "name": "africa-payments-mcp-cloudflare-workers",
+  "version": "0.1.0",
+  "description": "Cloudflare Workers deployment for Africa Payments MCP",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:remote": "wrangler dev --remote",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=dist/index.js --external:cloudflare:*",
+    "build:minified": "esbuild src/index.ts --bundle --minify --format=esm --platform=neutral --target=es2022 --outfile=dist/index.js --external:cloudflare:*",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cf-typegen": "wrangler types",
+    "tail": "wrangler tail",
+    "tail:staging": "wrangler tail --env staging",
+    "kv:list": "wrangler kv:key list --binding CACHE_KV",
+    "kv:seed": "wrangler kv:bulk put --binding API_KEYS_KV seed-keys.json",
+    "secret:put": "wrangler secret put",
+    "secret:list": "wrangler secret list"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240101.0",
+    "@types/node": "^20.8.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.50.0",
+    "typescript": "^5.2.0",
+    "vitest": "^1.0.0",
+    "wrangler": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

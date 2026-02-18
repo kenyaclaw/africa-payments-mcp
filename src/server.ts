@@ -21,6 +21,7 @@ import {
   ServerConfig, 
   PaymentError 
 } from './types/index.js';
+import { AgentSwarmIntegration } from './agents/integration.js';
 
 // Import provider adapters
 import { MpesaAdapter } from './adapters/mpesa/index.js';
@@ -33,6 +34,7 @@ export interface ServerOptions {
   configPath: string;
   port?: string;
   logLevel?: string;
+  agentSwarm?: AgentSwarmIntegration;
 }
 
 export class AfricaPaymentsMCPServer {
@@ -41,12 +43,14 @@ export class AfricaPaymentsMCPServer {
   private logger: Logger;
   private registry: ProviderRegistry;
   private toolManager: ToolManager;
+  private agentSwarm?: AgentSwarmIntegration;
 
-  constructor(config: ServerConfig, logLevel: string = 'info') {
+  constructor(config: ServerConfig, logLevel: string = 'info', agentSwarm?: AgentSwarmIntegration) {
     this.config = config;
     this.logger = new Logger(logLevel);
     this.registry = new ProviderRegistry(this.logger);
     this.toolManager = new ToolManager(this.registry, this.logger);
+    this.agentSwarm = agentSwarm;
 
     this.server = new Server(
       {
@@ -191,9 +195,14 @@ export async function createServer(options: ServerOptions): Promise<AfricaPaymen
   const configManager = new ConfigManager();
   const config = await configManager.load(configPath);
 
-  // Create and initialize server
-  const server = new AfricaPaymentsMCPServer(config, options.logLevel);
+  // Create and initialize server with agent swarm
+  const server = new AfricaPaymentsMCPServer(config, options.logLevel, options.agentSwarm);
   await server.initialize();
+  
+  // Initialize agent swarm if provided
+  if (options.agentSwarm) {
+    options.agentSwarm.updateSystemHealth();
+  }
   
   return server;
 }
