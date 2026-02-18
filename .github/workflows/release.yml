@@ -69,9 +69,8 @@ jobs:
       - name: Publish to NPM
         uses: JS-DevTools/npm-publish@v3
         with:
-          token: ${{ secrets.NPM_TOKEN }}
-          # For Trusted Publishing (OIDC), no token needed - configure at:
-          # https://www.npmjs.com/package/@kenyaclaw/africa-payments-mcp/access
+          # Trusted Publishing (OIDC) - configured at npmjs.com
+          # No token needed when GitHub Actions is set up as trusted publisher
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
