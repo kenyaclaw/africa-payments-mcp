@@ -572,12 +572,13 @@ export class WaveAdapter implements PaymentProvider {
       );
 
       const data = response.data;
+      const status = data.status === 'succeeded' ? 'refunded' : this.mapWaveStatus(data.status);
 
       return {
         id,
         providerTransactionId: data.id,
         provider: this.name,
-        status: this.mapWaveStatus(data.status),
+        status,
         amount: params.amount || { amount: 0, currency: 'XOF' },
         customer: {},
         description: `Refund: ${params.reason || 'Customer request'}`,

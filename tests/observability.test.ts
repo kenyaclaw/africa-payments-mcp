@@ -39,7 +39,7 @@ describe('Observability Features', () => {
       expect(body.timestamp).toBeDefined();
       expect(body.uptime).toBeGreaterThanOrEqual(0);
       expect(body.version).toBeDefined();
-      expect(body.providers).toBeInstanceOf(Array);
+      expect(Array.isArray(body.providers)).toBe(true);
       expect(body.summary).toBeDefined();
     });
 
