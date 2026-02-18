@@ -78,17 +78,37 @@ const result = await mpesa.stkPush({ phone, amount, accountRef });
 
 ## 🚀 Quick Start
 
-### 1. Install
+### One-Line Installer (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kenyaclaw/africa-payments-mcp/main/scripts/install.sh | bash
+```
+
+Or with wget:
+```bash
+wget -qO- https://raw.githubusercontent.com/kenyaclaw/africa-payments-mcp/main/scripts/install.sh | bash
+```
+
+### Manual Installation
+
+#### 1. Install
 
 ```bash
 npm install -g @kenyaclaw/africa-payments-mcp
 ```
 
-### 2. Configure
+#### 2. Configure
 
+**Interactive wizard (recommended):**
 ```bash
 africa-payments-mcp init
-# Follow the prompts to add your provider credentials
+# Beautiful interactive setup with emoji and progress indicators
+```
+
+**Auto-detect existing credentials:**
+```bash
+africa-payments-mcp detect --output config.json
+# Automatically finds MPESA_*, PAYSTACK_* env vars and config files
 ```
 
 ### 3. Connect to Your AI
@@ -114,6 +134,43 @@ Add to your MCP client configuration:
 Open Claude, ChatGPT, Cursor, or any MCP client and just ask:
 
 > "Send KES 5,000 to Mary via M-Pesa"
+
+---
+
+## 🐳 Docker Quick Start
+
+Run with Docker (no Node.js installation required):
+
+```bash
+# Pull the latest image
+docker pull kenyaclaw/africa-payments-mcp:latest
+
+# Run with a config file
+docker run -v $(pwd)/config.json:/app/config/config.json \
+  kenyaclaw/africa-payments-mcp:latest
+
+# Or run with environment variables
+docker run -e MPESA_CONSUMER_KEY=xxx \
+  -e MPESA_CONSUMER_SECRET=xxx \
+  -e PAYSTACK_SECRET_KEY=xxx \
+  kenyaclaw/africa-payments-mcp:latest
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  africa-payments:
+    image: kenyaclaw/africa-payments-mcp:latest
+    volumes:
+      - ./config.json:/app/config/config.json:ro
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"  # For webhook support
+    restart: unless-stopped
+```
 
 ---
 

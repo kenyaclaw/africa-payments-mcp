@@ -5,7 +5,11 @@
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { URL } from 'url';
-import { Logger } from '../utils/logger.js';
+import { StructuredLogger, getGlobalLogger } from '../utils/structured-logger.js';
+import { MetricsCollector, getGlobalMetrics } from '../utils/metrics.js';
+import { CircuitBreakerRegistry, getGlobalCircuitBreakerRegistry } from '../utils/circuit-breaker.js';
+import { IdempotencyStore, getGlobalIdempotencyStore } from '../utils/idempotency.js';
+import { HealthMonitor, getGlobalHealthMonitor } from '../utils/health-check.js';
 import { 
   PaymentEventEmitter, 
   getGlobalEventEmitter,
@@ -34,7 +38,17 @@ export interface WebhookServerConfig {
   // Custom event emitter (optional)
   eventEmitter?: PaymentEventEmitter;
   // Custom logger (optional)
-  logger?: Logger;
+  logger?: StructuredLogger;
+  // Custom metrics collector (optional)
+  metrics?: MetricsCollector;
+  // Custom circuit breaker registry (optional)
+  circuitBreakers?: CircuitBreakerRegistry;
+  // Custom idempotency store (optional)
+  idempotencyStore?: IdempotencyStore;
+  // Custom health monitor (optional)
+  healthMonitor?: HealthMonitor;
+  // Critical providers for health checks
+  criticalProviders?: string[];
 }
 
 export interface WebhookLogEntry {
@@ -47,24 +61,34 @@ export interface WebhookLogEntry {
   processingTimeMs: number;
   success: boolean;
   error?: string;
+  correlationId?: string;
 }
 
 // ==================== Webhook Server Class ====================
 
 export class WebhookServer {
   private server: Server | null = null;
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private config: WebhookServerConfig;
   private requestLogs: WebhookLogEntry[] = [];
   private maxLogEntries: number = 1000;
 
+  // Observability components
+  private metrics: MetricsCollector;
+  private circuitBreakers: CircuitBreakerRegistry;
+  private idempotencyStore: IdempotencyStore;
+  private healthMonitor: HealthMonitor;
+
   // Handler instances
   private mpesaHandler: MpesaWebhookHandler;
   private paystackHandler: PaystackWebhookHandler;
   private mtnMomoHandler: MTNMoMoWebhookHandler;
   private intasendHandler: IntaSendWebhookHandler;
+
+  // Active connections counter
+  private activeConnections = 0;
 
   constructor(config: WebhookServerConfig) {
     this.config = {
@@ -73,9 +97,23 @@ export class WebhookServer {
       ...config,
     };
 
-    this.logger = config.logger || new Logger();
+    // Initialize observability components
+    this.logger = config.logger || getGlobalLogger();
+    this.metrics = config.metrics || getGlobalMetrics();
+    this.circuitBreakers = config.circuitBreakers || getGlobalCircuitBreakerRegistry();
+    this.idempotencyStore = config.idempotencyStore || getGlobalIdempotencyStore();
+    this.healthMonitor = config.healthMonitor || getGlobalHealthMonitor({
+      criticalProviders: config.criticalProviders,
+    });
+
     this.eventEmitter = config.eventEmitter || getGlobalEventEmitter(this.logger);
     this.verifier = getGlobalVerifier(this.logger);
+
+    // Register providers with circuit breakers
+    this.registerCircuitBreakers();
+
+    // Register health checks
+    this.registerHealthChecks();
 
     // Initialize handlers
     this.mpesaHandler = createMpesaWebhookHandler(this.logger, this.eventEmitter, this.verifier);
@@ -99,6 +137,55 @@ export class WebhookServer {
     );
   }
 
+  private registerCircuitBreakers(): void {
+    const providers = ['mpesa', 'paystack', 'mtn-momo', 'intasend'];
+    for (const provider of providers) {
+      const breaker = this.circuitBreakers.register(provider, {
+        failureThreshold: 5,
+        resetTimeoutMs: 30000,
+        successThreshold: 3,
+      });
+
+      // Listen for circuit breaker events
+      breaker.on('trip', ({ provider, failures }) => {
+        this.logger.warn(`Circuit breaker tripped for ${provider}`, { failures });
+        this.metrics.setCircuitBreakerState(provider, 1);
+      });
+
+      breaker.on('reset', ({ provider }) => {
+        this.logger.info(`Circuit breaker reset for ${provider}`);
+        this.metrics.setCircuitBreakerState(provider, 0);
+      });
+
+      breaker.on('state_change', ({ provider, from, to }) => {
+        this.logger.info(`Circuit breaker state change for ${provider}: ${from} -> ${to}`);
+        const stateValue = to === 'OPEN' ? 1 : to === 'HALF_OPEN' ? 0.5 : 0;
+        this.metrics.setCircuitBreakerState(provider, stateValue as 0 | 0.5 | 1);
+      });
+    }
+  }
+
+  private registerHealthChecks(): void {
+    // Register basic health checks for each provider
+    const providers = ['mpesa', 'paystack', 'mtn-momo', 'intasend'];
+    for (const provider of providers) {
+      this.healthMonitor.registerProvider(provider, async () => {
+        const breaker = this.circuitBreakers.get(provider);
+        if (breaker && breaker.getState() === 'OPEN') {
+          return {
+            healthy: false,
+            error: 'Circuit breaker is OPEN',
+            metadata: { circuitBreakerState: breaker.getState() },
+          };
+        }
+        return { healthy: true };
+      });
+    }
+
+    // Start health monitoring
+    this.healthMonitor.start();
+  }
+
   /**
    * Start the webhook server
    */
@@ -108,10 +195,12 @@ export class WebhookServer {
 
       this.server.listen(this.config.port, this.config.host, () => {
         this.logger.info(`🌐 Webhook server listening on ${this.config.host}:${this.config.port}`);
-        this.logger.info(`   M-Pesa:     POST ${this.config.path}/mpesa`);
-        this.logger.info(`   Paystack:   POST ${this.config.path}/paystack`);
-        this.logger.info(`   MTN MoMo:   POST ${this.config.path}/mtn-momo`);
-        this.logger.info(`   IntaSend:   POST ${this.config.path}/intasend`);
+        this.logger.info(`   Health Check: GET /health`);
+        this.logger.info(`   Metrics:      GET /metrics`);
+        this.logger.info(`   M-Pesa:       POST ${this.config.path}/mpesa`);
+        this.logger.info(`   Paystack:     POST ${this.config.path}/paystack`);
+        this.logger.info(`   MTN MoMo:     POST ${this.config.path}/mtn-momo`);
+        this.logger.info(`   IntaSend:     POST ${this.config.path}/intasend`);
         resolve();
       });
 
@@ -127,6 +216,9 @@ export class WebhookServer {
    */
   async stop(): Promise<void> {
     return new Promise((resolve) => {
+      // Stop health monitoring
+      this.healthMonitor.stop();
+
       if (this.server) {
         this.server.close(() => {
           this.logger.info('Webhook server stopped');
@@ -143,38 +235,76 @@ export class WebhookServer {
    */
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const startTime = Date.now();
+    const correlationId = req.headers['x-correlation-id'] as string || 
+                          StructuredLogger.generateCorrelationId();
     const requestId = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    
+    // Increment active connections
+    this.activeConnections++;
+    this.metrics.incrementConnections();
+
+    // Create child logger with correlation ID
+    const logger = this.logger.child({ correlationId, requestId });
     
     try {
       // Parse URL
       const url = new URL(req.url || '/', `http://${req.headers.host}`);
       const method = req.method || 'GET';
 
-      this.logger.debug(`[${requestId}] ${method} ${url.pathname}`);
+      logger.debug(`${method} ${url.pathname}`, {
+        http: { method, url: url.pathname, correlationId, requestId },
+      });
 
       // CORS headers
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Paystack-Signature, X-Intasend-Signature');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Paystack-Signature, X-Intasend-Signature, X-Correlation-Id, X-Request-Id, X-Idempotency-Key');
 
       // Handle preflight
       if (method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
+        this.decrementConnections();
         return;
       }
 
       // Health check endpoint
       if (url.pathname === '/health' || url.pathname === '/healthz') {
-        this.handleHealthCheck(res);
-        this.logRequest(requestId, 'health', method, url.pathname, 200, Date.now() - startTime, true);
+        await this.handleHealthCheck(res);
+        this.logRequest(requestId, 'health', method, url.pathname, 200, Date.now() - startTime, true, undefined, correlationId);
+        this.decrementConnections();
+        return;
+      }
+
+      // Metrics endpoint
+      if (url.pathname === '/metrics') {
+        await this.handleMetrics(res);
+        this.logRequest(requestId, 'metrics', method, url.pathname, 200, Date.now() - startTime, true, undefined, correlationId);
+        this.decrementConnections();
+        return;
+      }
+
+      // Circuit breaker reset endpoint
+      if (url.pathname === '/circuit-breaker/reset' && method === 'POST') {
+        await this.handleCircuitBreakerReset(req, res);
+        this.logRequest(requestId, 'circuit-breaker', method, url.pathname, 200, Date.now() - startTime, true, undefined, correlationId);
+        this.decrementConnections();
+        return;
+      }
+
+      // Logs endpoint (for debugging)
+      if (url.pathname === `${this.config.path}/logs` && method === 'GET') {
+        this.handleLogsRequest(res);
+        this.logRequest(requestId, 'logs', method, url.pathname, 200, Date.now() - startTime, true, undefined, correlationId);
+        this.decrementConnections();
         return;
       }
 
       // Webhook endpoints - only accept POST
       if (method !== 'POST') {
         this.sendError(res, 405, 'Method not allowed');
-        this.logRequest(requestId, 'unknown', method, url.pathname, 405, Date.now() - startTime, false, 'Method not allowed');
+        this.logRequest(requestId, 'unknown', method, url.pathname, 405, Date.now() - startTime, false, 'Method not allowed', correlationId);
+        this.decrementConnections();
         return;
       }
 
@@ -182,27 +312,31 @@ export class WebhookServer {
       const basePath = this.config.path || '/webhooks';
       
       if (url.pathname === `${basePath}/mpesa`) {
-        await this.handleMpesaWebhook(req, res, requestId, startTime);
+        await this.handleMpesaWebhook(req, res, requestId, startTime, correlationId, logger);
       } else if (url.pathname === `${basePath}/paystack`) {
-        await this.handlePaystackWebhook(req, res, requestId, startTime);
+        await this.handlePaystackWebhook(req, res, requestId, startTime, correlationId, logger);
       } else if (url.pathname === `${basePath}/mtn-momo`) {
-        await this.handleMTNMoMoWebhook(req, res, requestId, startTime);
+        await this.handleMTNMoMoWebhook(req, res, requestId, startTime, correlationId, logger);
       } else if (url.pathname === `${basePath}/intasend`) {
-        await this.handleIntaSendWebhook(req, res, requestId, startTime);
-      } else if (url.pathname === `${basePath}/logs`) {
-        this.handleLogsRequest(res);
-        this.logRequest(requestId, 'logs', method, url.pathname, 200, Date.now() - startTime, true);
+        await this.handleIntaSendWebhook(req, res, requestId, startTime, correlationId, logger);
       } else {
         this.sendError(res, 404, 'Not found');
-        this.logRequest(requestId, 'unknown', method, url.pathname, 404, Date.now() - startTime, false, 'Not found');
+        this.logRequest(requestId, 'unknown', method, url.pathname, 404, Date.now() - startTime, false, 'Not found', correlationId);
+        this.decrementConnections();
       }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`[${requestId}] Request handling error: ${errorMessage}`);
+      logger.error(`Request handling error: ${errorMessage}`, error as Error);
       this.sendError(res, 500, 'Internal server error');
-      this.logRequest(requestId, 'unknown', req.method || 'UNKNOWN', req.url || '/', 500, Date.now() - startTime, false, errorMessage);
+      this.logRequest(requestId, 'unknown', req.method || 'UNKNOWN', req.url || '/', 500, Date.now() - startTime, false, errorMessage, correlationId);
+      this.decrementConnections();
     }
+  }
+
+  private decrementConnections(): void {
+    this.activeConnections--;
+    this.metrics.decrementConnections();
   }
 
   /**
@@ -212,26 +346,65 @@ export class WebhookServer {
     req: IncomingMessage, 
     res: ServerResponse,
     requestId: string,
-    startTime: number
+    startTime: number,
+    correlationId: string,
+    logger: StructuredLogger
   ): Promise<void> {
+    const provider = 'mpesa';
+    
+    // Check circuit breaker
+    if (!this.circuitBreakers.canExecute(provider)) {
+      this.sendError(res, 503, 'Service temporarily unavailable - circuit breaker open');
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 503, Date.now() - startTime, false, 'Circuit breaker open', correlationId);
+      this.decrementConnections();
+      return;
+    }
+
     try {
-      // Parse body
       const body = await this.parseJsonBody(req);
       
       // Process asynchronously - respond immediately
-      this.respondOk(res, { received: true, requestId });
+      this.respondOk(res, { received: true, requestId, correlationId });
       
       // Process webhook after response
+      const processStart = Date.now();
       const result = await this.mpesaHandler.handleWebhook(body, req.headers as Record<string, string | string[]>);
+      const duration = Date.now() - processStart;
       
-      this.logRequest(requestId, 'mpesa', 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: body.Body?.stkCallback ? 'stk_callback' : 'other',
+        status: result.success ? 'success' : 'error',
+        duration,
+      });
+
+      if (result.success) {
+        this.circuitBreakers.recordSuccess(provider);
+      } else {
+        this.circuitBreakers.recordFailure(provider, new Error(result.message));
+      }
       
-      this.logger.info(`[${requestId}] M-Pesa webhook processed: ${result.message}`);
+      this.logRequest(requestId, provider, 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message, correlationId);
+      
+      logger.info(`M-Pesa webhook processed: ${result.message}`, {
+        provider,
+        success: result.success,
+        duration,
+      });
     } catch (error) {
-      this.respondOk(res, { received: true, requestId }); // Still return 200 to prevent retries
+      this.respondOk(res, { received: true, requestId, correlationId }); // Still return 200 to prevent retries
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logRequest(requestId, 'mpesa', 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage);
-      this.logger.error(`[${requestId}] M-Pesa webhook error: ${errorMessage}`);
+      this.circuitBreakers.recordFailure(provider, error as Error);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: 'unknown',
+        status: 'error',
+        duration: Date.now() - startTime,
+      });
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage, correlationId);
+      logger.error(`M-Pesa webhook error: ${errorMessage}`, error as Error);
+    } finally {
+      this.decrementConnections();
     }
   }
 
@@ -242,10 +415,21 @@ export class WebhookServer {
     req: IncomingMessage, 
     res: ServerResponse,
     requestId: string,
-    startTime: number
+    startTime: number,
+    correlationId: string,
+    logger: StructuredLogger
   ): Promise<void> {
+    const provider = 'paystack';
+    
+    // Check circuit breaker
+    if (!this.circuitBreakers.canExecute(provider)) {
+      this.sendError(res, 503, 'Service temporarily unavailable - circuit breaker open');
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 503, Date.now() - startTime, false, 'Circuit breaker open', correlationId);
+      this.decrementConnections();
+      return;
+    }
+
     try {
-      // Get raw body for signature verification
       const rawBody = await this.getRawBody(req);
       const body = JSON.parse(rawBody.toString('utf8'));
       
@@ -253,19 +437,49 @@ export class WebhookServer {
       const signature = this.extractHeader(req, 'x-paystack-signature');
       
       // Process asynchronously - respond immediately
-      this.respondOk(res, { received: true, requestId });
+      this.respondOk(res, { received: true, requestId, correlationId });
       
       // Process webhook after response
+      const processStart = Date.now();
       const result = await this.paystackHandler.handleWebhook(body, signature, rawBody.toString('utf8'));
+      const duration = Date.now() - processStart;
       
-      this.logRequest(requestId, 'paystack', 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message);
+      const status = result.success ? 'success' : signature ? 'error' : 'invalid_signature';
+      this.metrics.recordWebhook({
+        provider,
+        eventType: body.event || 'unknown',
+        status,
+        duration,
+      });
+
+      if (result.success) {
+        this.circuitBreakers.recordSuccess(provider);
+      } else {
+        this.circuitBreakers.recordFailure(provider, new Error(result.message));
+      }
       
-      this.logger.info(`[${requestId}] Paystack webhook processed: ${result.message}`);
+      this.logRequest(requestId, provider, 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message, correlationId);
+      
+      logger.info(`Paystack webhook processed: ${result.message}`, {
+        provider,
+        success: result.success,
+        duration,
+        event: body.event,
+      });
     } catch (error) {
-      this.respondOk(res, { received: true, requestId }); // Still return 200 to prevent retries
+      this.respondOk(res, { received: true, requestId, correlationId }); // Still return 200 to prevent retries
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logRequest(requestId, 'paystack', 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage);
-      this.logger.error(`[${requestId}] Paystack webhook error: ${errorMessage}`);
+      this.circuitBreakers.recordFailure(provider, error as Error);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: 'unknown',
+        status: 'error',
+        duration: Date.now() - startTime,
+      });
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage, correlationId);
+      logger.error(`Paystack webhook error: ${errorMessage}`, error as Error);
+    } finally {
+      this.decrementConnections();
     }
   }
 
@@ -276,25 +490,65 @@ export class WebhookServer {
     req: IncomingMessage, 
     res: ServerResponse,
     requestId: string,
-    startTime: number
+    startTime: number,
+    correlationId: string,
+    logger: StructuredLogger
   ): Promise<void> {
+    const provider = 'mtn-momo';
+    
+    // Check circuit breaker
+    if (!this.circuitBreakers.canExecute(provider)) {
+      this.sendError(res, 503, 'Service temporarily unavailable - circuit breaker open');
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 503, Date.now() - startTime, false, 'Circuit breaker open', correlationId);
+      this.decrementConnections();
+      return;
+    }
+
     try {
       const body = await this.parseJsonBody(req);
       
       // Process asynchronously - respond immediately
-      this.respondOk(res, { received: true, requestId });
+      this.respondOk(res, { received: true, requestId, correlationId });
       
       // Process webhook after response
+      const processStart = Date.now();
       const result = await this.mtnMomoHandler.handleWebhook(body, req.headers as Record<string, string | string[]>);
+      const duration = Date.now() - processStart;
       
-      this.logRequest(requestId, 'mtn-momo', 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: body.status || 'unknown',
+        status: result.success ? 'success' : 'error',
+        duration,
+      });
+
+      if (result.success) {
+        this.circuitBreakers.recordSuccess(provider);
+      } else {
+        this.circuitBreakers.recordFailure(provider, new Error(result.message));
+      }
       
-      this.logger.info(`[${requestId}] MTN MoMo webhook processed: ${result.message}`);
+      this.logRequest(requestId, provider, 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message, correlationId);
+      
+      logger.info(`MTN MoMo webhook processed: ${result.message}`, {
+        provider,
+        success: result.success,
+        duration,
+      });
     } catch (error) {
-      this.respondOk(res, { received: true, requestId });
+      this.respondOk(res, { received: true, requestId, correlationId });
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logRequest(requestId, 'mtn-momo', 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage);
-      this.logger.error(`[${requestId}] MTN MoMo webhook error: ${errorMessage}`);
+      this.circuitBreakers.recordFailure(provider, error as Error);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: 'unknown',
+        status: 'error',
+        duration: Date.now() - startTime,
+      });
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage, correlationId);
+      logger.error(`MTN MoMo webhook error: ${errorMessage}`, error as Error);
+    } finally {
+      this.decrementConnections();
     }
   }
 
@@ -305,8 +559,20 @@ export class WebhookServer {
     req: IncomingMessage, 
     res: ServerResponse,
     requestId: string,
-    startTime: number
+    startTime: number,
+    correlationId: string,
+    logger: StructuredLogger
   ): Promise<void> {
+    const provider = 'intasend';
+    
+    // Check circuit breaker
+    if (!this.circuitBreakers.canExecute(provider)) {
+      this.sendError(res, 503, 'Service temporarily unavailable - circuit breaker open');
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 503, Date.now() - startTime, false, 'Circuit breaker open', correlationId);
+      this.decrementConnections();
+      return;
+    }
+
     try {
       const body = await this.parseJsonBody(req);
       
@@ -314,32 +580,118 @@ export class WebhookServer {
       const signature = this.extractHeader(req, 'x-intasend-signature') || this.extractHeader(req, 'x-signature');
       
       // Process asynchronously - respond immediately
-      this.respondOk(res, { received: true, requestId });
+      this.respondOk(res, { received: true, requestId, correlationId });
       
       // Process webhook after response
+      const processStart = Date.now();
       const result = await this.intasendHandler.handleWebhook(body, signature);
+      const duration = Date.now() - processStart;
       
-      this.logRequest(requestId, 'intasend', 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: body.event || body.state || 'unknown',
+        status: result.success ? 'success' : 'error',
+        duration,
+      });
+
+      if (result.success) {
+        this.circuitBreakers.recordSuccess(provider);
+      } else {
+        this.circuitBreakers.recordFailure(provider, new Error(result.message));
+      }
       
-      this.logger.info(`[${requestId}] IntaSend webhook processed: ${result.message}`);
+      this.logRequest(requestId, provider, 'POST', req.url || '/', result.success ? 200 : 400, Date.now() - startTime, result.success, result.success ? undefined : result.message, correlationId);
+      
+      logger.info(`IntaSend webhook processed: ${result.message}`, {
+        provider,
+        success: result.success,
+        duration,
+      });
     } catch (error) {
-      this.respondOk(res, { received: true, requestId });
+      this.respondOk(res, { received: true, requestId, correlationId });
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logRequest(requestId, 'intasend', 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage);
-      this.logger.error(`[${requestId}] IntaSend webhook error: ${errorMessage}`);
+      this.circuitBreakers.recordFailure(provider, error as Error);
+      this.metrics.recordWebhook({
+        provider,
+        eventType: 'unknown',
+        status: 'error',
+        duration: Date.now() - startTime,
+      });
+      this.logRequest(requestId, provider, 'POST', req.url || '/', 500, Date.now() - startTime, false, errorMessage, correlationId);
+      logger.error(`IntaSend webhook error: ${errorMessage}`, error as Error);
+    } finally {
+      this.decrementConnections();
     }
   }
 
   /**
    * Handle health check
    */
-  private handleHealthCheck(res: ServerResponse): void {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+  private async handleHealthCheck(res: ServerResponse): Promise<void> {
+    const healthResult = this.healthMonitor.getHealthResult();
+    const statusCode = this.healthMonitor.getHttpStatusCode();
+
+    // Update circuit breaker statuses in health result
+    for (const providerHealth of healthResult.providers) {
+      const breakerStatus = this.circuitBreakers.getStatus(providerHealth.name);
+      if (breakerStatus) {
+        providerHealth.circuitBreaker = breakerStatus;
+        // Mark as unhealthy if circuit is open
+        if (breakerStatus.state === 'OPEN') {
+          providerHealth.status = 'unhealthy';
+          providerHealth.error = 'Circuit breaker is OPEN';
+        }
+      }
+    }
+
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
+      ...healthResult,
+      timestamp: healthResult.timestamp.toISOString(),
+      activeConnections: this.activeConnections,
     }));
+  }
+
+  /**
+   * Handle metrics request
+   */
+  private async handleMetrics(res: ServerResponse): Promise<void> {
+    const metrics = await this.metrics.getMetrics();
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(metrics);
+  }
+
+  /**
+   * Handle circuit breaker reset request
+   */
+  private async handleCircuitBreakerReset(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const body = await this.parseJsonBody(req);
+      const { provider } = body;
+
+      if (!provider) {
+        this.sendError(res, 400, 'Missing provider parameter');
+        return;
+      }
+
+      const success = this.circuitBreakers.reset(provider);
+      
+      if (success) {
+        this.logger.info(`Circuit breaker manually reset for ${provider}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          success: true, 
+          message: `Circuit breaker reset for ${provider}`,
+          provider,
+        }));
+      } else {
+        this.sendError(res, 404, `Provider ${provider} not found`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Circuit breaker reset error: ${errorMessage}`, error as Error);
+      this.sendError(res, 500, 'Internal server error');
+    }
   }
 
   /**
@@ -436,7 +788,8 @@ export class WebhookServer {
     statusCode: number,
     processingTimeMs: number,
     success: boolean,
-    error?: string
+    error?: string,
+    correlationId?: string
   ): void {
     const entry: WebhookLogEntry = {
       id,
@@ -448,6 +801,7 @@ export class WebhookServer {
       processingTimeMs,
       success,
       error,
+      correlationId,
     };
 
     this.requestLogs.push(entry);
@@ -478,6 +832,19 @@ export class WebhookServer {
   getEventEmitter(): PaymentEventEmitter {
     return this.eventEmitter;
   }
+
+  /**
+   * Get observability components
+   */
+  getObservability() {
+    return {
+      logger: this.logger,
+      metrics: this.metrics,
+      circuitBreakers: this.circuitBreakers,
+      idempotencyStore: this.idempotencyStore,
+      healthMonitor: this.healthMonitor,
+    };
+  }
 }
 
 // ==================== Factory Functions ====================
@@ -493,9 +860,10 @@ export function createWebhookServer(config: WebhookServerConfig): WebhookServer 
  * Usage: app.post('/webhooks/:provider', createWebhookMiddleware(config));
  */
 export function createWebhookMiddleware(config: Omit<WebhookServerConfig, 'port' | 'host'>) {
-  const logger = config.logger || new Logger();
+  const logger = config.logger || getGlobalLogger();
   const eventEmitter = config.eventEmitter || getGlobalEventEmitter(logger);
   const verifier = getGlobalVerifier(logger);
+  const circuitBreakers = config.circuitBreakers || getGlobalCircuitBreakerRegistry();
 
   const mpesaHandler = createMpesaWebhookHandler(logger, eventEmitter, verifier);
   const paystackHandler = createPaystackWebhookHandler(logger, eventEmitter, verifier, config.secrets?.paystack);
@@ -504,33 +872,49 @@ export function createWebhookMiddleware(config: Omit<WebhookServerConfig, 'port'
 
   return async (req: any, res: any, next: any) => {
     const provider = req.params.provider;
+    const correlationId = req.headers['x-correlation-id'] || StructuredLogger.generateCorrelationId();
     const requestId = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     try {
+      // Check circuit breaker
+      if (!circuitBreakers.canExecute(provider)) {
+        res.status(503).json({ error: 'Service temporarily unavailable - circuit breaker open' });
+        return;
+      }
+
       // Always respond 200 immediately to prevent retries
-      res.json({ received: true, requestId });
+      res.json({ received: true, requestId, correlationId });
 
       // Process asynchronously
+      let result;
       switch (provider) {
         case 'mpesa':
-          await mpesaHandler.handleWebhook(req.body, req.headers);
+          result = await mpesaHandler.handleWebhook(req.body, req.headers);
           break;
         case 'paystack':
           const paystackSig = req.headers['x-paystack-signature'];
-          await paystackHandler.handleWebhook(req.body, paystackSig, JSON.stringify(req.body));
+          result = await paystackHandler.handleWebhook(req.body, paystackSig, JSON.stringify(req.body));
           break;
         case 'mtn-momo':
-          await mtnMomoHandler.handleWebhook(req.body, req.headers);
+          result = await mtnMomoHandler.handleWebhook(req.body, req.headers);
           break;
         case 'intasend':
           const intasendSig = req.headers['x-intasend-signature'] || req.headers['x-signature'];
-          await intasendHandler.handleWebhook(req.body, intasendSig);
+          result = await intasendHandler.handleWebhook(req.body, intasendSig);
           break;
         default:
           logger.warn(`Unknown provider: ${provider}`);
+          return;
+      }
+
+      if (result.success) {
+        circuitBreakers.recordSuccess(provider);
+      } else {
+        circuitBreakers.recordFailure(provider, new Error(result.message));
       }
     } catch (error) {
-      logger.error(`Middleware error: ${error}`);
+      logger.error(`Middleware error: ${error}`, error as Error);
+      circuitBreakers.recordFailure(provider, error as Error);
     }
   };
 }

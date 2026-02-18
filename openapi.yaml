@@ -1,0 +1,854 @@
+openapi: 3.0.3
+info:
+  title: Africa Payments MCP API
+  description: |
+    Unified API for African payment providers - M-Pesa, Paystack, MTN MoMo, Airtel Money, and more.
+    
+    This API provides a consistent interface for payment operations across multiple African payment providers.
+    
+    ## Supported Providers
+    
+    | Provider | Countries | Currencies |
+    |----------|-----------|------------|
+    | M-Pesa | Kenya, Tanzania, Mozambique | KES, TZS, MZN |
+    | Paystack | Nigeria, Ghana, South Africa, Kenya | NGN, GHS, ZAR, KES |
+    | MTN MoMo | Uganda, Ghana, Cameroon, Rwanda, 10+ more | UGX, GHS, XAF, RWF |
+    | Airtel Money | Kenya, Uganda, Tanzania, Zambia, Malawi, Rwanda | KES, UGX, TZS, ZMW, MWK, RWF |
+    | IntaSend | Kenya, Nigeria | KES, NGN |
+    
+    ## Authentication
+    
+    All API requests require authentication using one of the following methods:
+    - **API Key**: Passed in the `X-API-Key` header
+    - **Bearer Token**: Passed in the `Authorization: Bearer <token>` header
+    
+  version: 1.0.0
+  contact:
+    name: KenyaClaw Team
+    email: "team@kenyaclaw.com"
+    url: "https://github.com/kenyaclaw/africa-payments-mcp"
+  license:
+    name: MIT
+    url: "https://opensource.org/licenses/MIT"
+servers:
+-
+  url: "http://localhost:3000"
+  description: Local development server
+-
+  url: "https://api.africa-payments.com"
+  description: Production server
+tags:
+-
+  name: Payments
+  description: Core payment operations
+-
+  name: Transactions
+  description: Transaction management and verification
+-
+  name: Refunds
+  description: Refund operations
+-
+  name: Providers
+  description: Provider information and management
+-
+  name: Webhooks
+  description: Webhook handling and verification
+-
+  name: Utils
+  description: Utility endpoints
+paths:
+  /payments/send:
+    post:
+      tags: [Payments]
+      summary: Send money to a recipient
+      description: Send money using the best available provider based on recipient country and phone number.
+      operationId: sendMoney
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMoneyRequest"
+            examples:
+              M-Pesa Kenya:
+                summary: Send money via M-Pesa (Kenya)
+                value:
+                  recipient_phone: +254712345678
+                  amount: 1000
+                  currency: KES
+                  description: Payment for services
+              Paystack Nigeria:
+                summary: Send money via Paystack (Nigeria)
+                value:
+                  recipient_phone: +2348012345678
+                  amount: 5000
+                  currency: NGN
+                  provider: paystack
+                  description: Vendor payment
+      responses:
+        200:
+          description: Payment initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        400:
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /payments/request:
+    post:
+      tags: [Payments]
+      summary: Request payment from a customer
+      description: "Request payment using the most appropriate provider for the customer's country."
+      operationId: requestPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestPaymentRequest"
+      responses:
+        200:
+          description: Payment request initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /payments/mpesa/stk-push:
+    post:
+      tags: [Payments]
+      summary: M-Pesa STK Push
+      description: Initiate M-Pesa STK Push (Paybill/Till number payment). Sends payment prompt to customer phone.
+      operationId: mpesaSTKPush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number, amount]
+              properties:
+                phone_number:
+                  type: string
+                  description: Customer phone number (254712345678)
+                  example: 254712345678
+                amount:
+                  type: number
+                  description: Amount in KES
+                  example: 1000
+                account_reference:
+                  type: string
+                  description: "Account number/reference (e.g., INV001)"
+                  example: INV001
+                description:
+                  type: string
+                  description: Payment description
+                  example: "Payment for invoice #001"
+      responses:
+        200:
+          description: STK Push initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/STKPushResponse"
+  /payments/mpesa/b2c:
+    post:
+      tags: [Payments]
+      summary: M-Pesa B2C Transfer
+      description: "Send money from business to customer (B2C). Used for payouts, refunds, salaries."
+      operationId: mpesaB2C
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number, amount]
+              properties:
+                phone_number:
+                  type: string
+                  description: Recipient phone number
+                  example: 254712345678
+                amount:
+                  type: number
+                  description: Amount in KES
+                  example: 5000
+                description:
+                  type: string
+                  description: Transaction description
+                  example: Salary payment
+      responses:
+        200:
+          description: B2C transfer initiated
+  /payments/paystack/initialize:
+    post:
+      tags: [Payments]
+      summary: Initialize Paystack transaction
+      description: Initialize a Paystack transaction. Returns payment link/authorization.
+      operationId: paystackInitialize
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, amount]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Customer email address
+                  example: "customer@example.com"
+                amount:
+                  type: number
+                  description: "Amount in lowest currency unit (kobo for NGN, cents for USD)"
+                  example: 500000
+                currency:
+                  type: string
+                  enum: [NGN, GHS, ZAR, USD]
+                  description: Currency code
+                  example: NGN
+                reference:
+                  type: string
+                  description: Unique transaction reference
+                  example: TXN_123456789
+                callback_url:
+                  type: string
+                  format: uri
+                  description: URL to redirect after payment
+                metadata:
+                  type: object
+                  description: Additional metadata
+      responses:
+        200:
+          description: Transaction initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authorization_url:
+                    type: string
+                    description: Payment URL to redirect customer to
+                  access_code:
+                    type: string
+                  reference:
+                    type: string
+  /transactions/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction by ID
+      description: Retrieve transaction details including status and metadata.
+      operationId: getTransaction
+      parameters:
+      -
+        name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Transaction ID
+      responses:
+        200:
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        404:
+          description: Transaction not found
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions
+      description: List transactions across all providers with filtering options.
+      operationId: listTransactions
+      parameters:
+      -
+        name: provider
+        in: query
+        schema:
+          type: string
+        description: Filter by specific provider
+      -
+        name: status
+        in: query
+        schema:
+          type: string
+          enum: [pending, processing, completed, failed, refunded]
+        description: Filter by status
+      -
+        name: start_date
+        in: query
+        schema:
+          type: string
+          format: date
+        description: Start date (ISO 8601)
+      -
+        name: end_date
+        in: query
+        schema:
+          type: string
+          format: date
+        description: End date (ISO 8601)
+      -
+        name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+        description: Maximum number of results
+      -
+        name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+        description: Number of results to skip
+      responses:
+        200:
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Transaction"
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+  /transactions/{id}/verify:
+    post:
+      tags: [Transactions]
+      summary: Verify transaction
+      description: Verify the status of a transaction across any provider.
+      operationId: verifyTransaction
+      parameters:
+      -
+        name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Transaction verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /refunds:
+    post:
+      tags: [Refunds]
+      summary: Create refund
+      description: Refund a transaction. Supports full or partial refunds.
+      operationId: createRefund
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transaction_id]
+              properties:
+                transaction_id:
+                  type: string
+                  description: Original transaction ID to refund
+                amount:
+                  type: number
+                  description: Amount to refund (omit for full refund)
+                reason:
+                  type: string
+                  description: Reason for refund
+      responses:
+        200:
+          description: Refund processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /providers:
+    get:
+      tags: [Providers]
+      summary: List providers
+      description: List all configured payment providers and their status.
+      operationId: listProviders
+      responses:
+        200:
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProviderInfo"
+  /providers/{name}:
+    get:
+      tags: [Providers]
+      summary: Get provider info
+      description: Get detailed information about a specific payment provider.
+      operationId: getProviderInfo
+      parameters:
+      -
+        name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [mpesa, paystack, mtn_momo, airtel_money, intasend]
+      responses:
+        200:
+          description: Provider information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderInfo"
+  /providers/{name}/balance:
+    get:
+      tags: [Providers]
+      summary: Get provider balance
+      description: Get current balance for a provider (if supported).
+      operationId: getProviderBalance
+      parameters:
+      -
+        name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Balance information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Money"
+  /webhooks:
+    post:
+      tags: [Webhooks]
+      summary: Receive webhook
+      description: Endpoint for receiving webhooks from payment providers.
+      operationId: receiveWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookPayload"
+      responses:
+        200:
+          description: Webhook received successfully
+  /webhooks/verify:
+    post:
+      tags: [Webhooks]
+      summary: Verify webhook signature
+      description: Verify the signature of a webhook payload.
+      operationId: verifyWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, payload, signature]
+              properties:
+                provider:
+                  type: string
+                  enum: [mpesa, paystack, mtn_momo, airtel_money, intasend]
+                payload:
+                  type: object
+                signature:
+                  type: string
+      responses:
+        200:
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+  /rates:
+    get:
+      tags: [Utils]
+      summary: Get exchange rates
+      description: Get current exchange rates for African currencies.
+      operationId: getRates
+      parameters:
+      -
+        name: from
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Source currency code (USD, EUR, GBP)"
+        example: USD
+      -
+        name: to
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Target currency code (KES, NGN, GHS, UGX, TZS)"
+        example: KES
+      responses:
+        200:
+          description: Exchange rate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                  to:
+                    type: string
+                  rate:
+                    type: number
+                  source:
+                    type: string
+  /health:
+    get:
+      tags: [Utils]
+      summary: Health check
+      description: Check the health status of the API and configured providers.
+      operationId: healthCheck
+      security: []
+      responses:
+        200:
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  providers:
+                    type: object
+                    additionalProperties:
+                      type: string
+                      enum: [available, unavailable]
+components:
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          description: Amount in the smallest currency unit
+          example: 1000
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          enum: [KES, NGN, GHS, UGX, TZS, ZAR, RWF, XOF, XAF, ZMW, MWK, MZN, USD, EUR, GBP]
+          example: KES
+    PhoneNumber:
+      type: object
+      properties:
+        countryCode:
+          type: string
+          description: "Country code (e.g., 254 for Kenya)"
+          example: 254
+        nationalNumber:
+          type: string
+          description: National phone number
+          example: 712345678
+        formatted:
+          type: string
+          description: Full formatted number
+          example: +254712345678
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        phone:
+          $ref: "#/components/schemas/PhoneNumber"
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          enum: [KE, NG, GH, UG, TZ, ZA, RW, CI, SN, CM, ET, ZM, MW, MZ, BW]
+          example: KE
+    Transaction:
+      type: object
+      required: [id, provider, status, amount, customer, createdAt]
+      properties:
+        id:
+          type: string
+          description: Unique transaction ID
+          example: txn_1234567890
+        providerTransactionId:
+          type: string
+          description: Provider-specific transaction ID
+        provider:
+          type: string
+          enum: [mpesa, paystack, mtn_momo, airtel_money, intasend]
+          example: mpesa
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, cancelled, refunded]
+          example: completed
+        amount:
+          $ref: "#/components/schemas/Money"
+        customer:
+          $ref: "#/components/schemas/Customer"
+        description:
+          type: string
+          example: "Payment for invoice #001"
+        metadata:
+          type: object
+          description: Additional metadata
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+        refundId:
+          type: string
+    SendMoneyRequest:
+      type: object
+      required: [recipient_phone, amount]
+      properties:
+        recipient_phone:
+          type: string
+          description: "Recipient phone number (international format: +254712345678)"
+          example: +254712345678
+        recipient_name:
+          type: string
+          description: Name of the recipient
+          example: John Doe
+        amount:
+          type: number
+          description: Amount to send
+          example: 1000
+        currency:
+          type: string
+          description: Currency code (auto-detected if not provided)
+          example: KES
+        provider:
+          type: string
+          description: Specific provider to use (auto-selected if not provided)
+          enum: [mpesa, paystack, mtn_momo, airtel_money, intasend]
+        description:
+          type: string
+          description: Description/purpose of the payment
+        country:
+          type: string
+          description: Recipient country code (auto-detected from phone if not provided)
+          example: KE
+        callback_url:
+          type: string
+          format: uri
+          description: Webhook URL for status updates
+    RequestPaymentRequest:
+      type: object
+      required: [amount]
+      properties:
+        customer_phone:
+          type: string
+          description: Customer phone number
+          example: +254712345678
+        customer_email:
+          type: string
+          format: email
+          description: Customer email address
+        customer_name:
+          type: string
+          description: Customer name
+        amount:
+          type: number
+          description: Amount to request
+          example: 1000
+        currency:
+          type: string
+          description: Currency code
+          example: KES
+        description:
+          type: string
+          description: Description of what the payment is for
+        provider:
+          type: string
+          description: Specific provider to use
+        expiry_minutes:
+          type: number
+          description: Payment request expiry time in minutes
+          default: 60
+        callback_url:
+          type: string
+          format: uri
+    STKPushResponse:
+      type: object
+      properties:
+        MerchantRequestID:
+          type: string
+        CheckoutRequestID:
+          type: string
+        ResponseCode:
+          type: string
+        ResponseDescription:
+          type: string
+        CustomerMessage:
+          type: string
+    ProviderInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: mpesa
+        displayName:
+          type: string
+          example: M-Pesa
+        countries:
+          type: array
+          items:
+            type: string
+          example: [KE, TZ, MZ]
+        currencies:
+          type: array
+          items:
+            type: string
+          example: [KES, TZS, MZN]
+        supportedMethods:
+          type: array
+          items:
+            type: string
+            enum: [mobile_money, card, bank_transfer, wallet, qr_code]
+        enabled:
+          type: boolean
+        environment:
+          type: string
+          enum: [sandbox, production]
+    WebhookPayload:
+      type: object
+      description: Webhook payload structure varies by provider
+      oneOf:
+      -
+        $ref: "#/components/schemas/MpesaWebhookPayload"
+      -
+        $ref: "#/components/schemas/PaystackWebhookPayload"
+    MpesaWebhookPayload:
+      type: object
+      description: M-Pesa webhook payload
+      properties:
+        Body:
+          type: object
+          properties:
+            stkCallback:
+              type: object
+              properties:
+                MerchantRequestID:
+                  type: string
+                CheckoutRequestID:
+                  type: string
+                ResultCode:
+                  type: number
+                ResultDesc:
+                  type: string
+                CallbackMetadata:
+                  type: object
+                  properties:
+                    Item:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          Name:
+                            type: string
+                          Value:
+    PaystackWebhookPayload:
+      type: object
+      description: Paystack webhook payload
+      properties:
+        event:
+          type: string
+          enum: [charge.success, charge.failed, transfer.success, transfer.failed, refund.processed]
+          example: charge.success
+        data:
+          type: object
+          properties:
+            id:
+              type: number
+            domain:
+              type: string
+            status:
+              type: string
+            reference:
+              type: string
+            amount:
+              type: number
+            currency:
+              type: string
+            customer:
+              type: object
+              properties:
+                email:
+                  type: string
+                phone:
+                  type: string
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [UNKNOWN_ERROR, INVALID_CONFIG, PROVIDER_NOT_AVAILABLE, INVALID_AMOUNT, INVALID_PHONE, INVALID_CURRENCY, MISSING_REQUIRED_FIELD, PROVIDER_ERROR, INSUFFICIENT_FUNDS, TRANSACTION_FAILED, TRANSACTION_NOT_FOUND, DUPLICATE_TRANSACTION, NETWORK_ERROR, TIMEOUT_ERROR, RATE_LIMITED, AUTHENTICATION_FAILED, PERMISSION_DENIED]
+        message:
+          type: string
+        provider:
+          type: string
+        transactionId:
+          type: string
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+-
+  ApiKeyAuth: []
+-
+  BearerAuth: []

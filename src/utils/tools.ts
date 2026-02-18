@@ -52,6 +52,7 @@ export class ToolManager {
       // Info/Utility
       this.listProvidersTool(),
       this.getProviderInfoTool(),
+      this.compareProvidersTool(),
     ];
   }
 
@@ -98,6 +99,8 @@ export class ToolManager {
         return this.executeListProviders();
       case 'get_provider_info':
         return this.executeGetProviderInfo(args);
+      case 'compare_providers':
+        return this.executeCompareProviders(args);
       
       default:
         throw new PaymentError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_ERROR);
@@ -111,7 +114,8 @@ export class ToolManager {
       name: 'unified_send_money',
       description: `Send money to a recipient using the best available provider. 
         Automatically selects the appropriate provider based on recipient country and phone number.
-        Supports M-Pesa, Paystack, MTN MoMo, Airtel Money, and more.`,
+        Supports M-Pesa, Paystack, MTN MoMo, Airtel Money, and more.
+        Use "auto" as provider to enable smart selection based on fees, speed, and reliability.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -133,7 +137,7 @@ export class ToolManager {
           },
           provider: {
             type: 'string',
-            description: 'Specific provider to use (mpesa, paystack, mtn_momo, etc.). Auto-selected if not provided.',
+            description: 'Specific provider to use (mpesa, paystack, mtn_momo, auto, etc.). Use "auto" for smart selection based on fees, speed, and reliability.',
           },
           description: {
             type: 'string',
@@ -143,6 +147,11 @@ export class ToolManager {
             type: 'string',
             description: 'Recipient country code (KE, NG, GH, UG, TZ, etc.). Auto-detected from phone if not provided.',
           },
+          priority: {
+            type: 'string',
+            enum: ['fees', 'speed', 'reliability', 'balanced'],
+            description: 'Priority for smart provider selection when using "auto" (default: balanced)',
+          },
         },
         required: ['recipient_phone', 'amount'],
       },
@@ -150,14 +159,33 @@ export class ToolManager {
   }
 
   private async executeUnifiedSendMoney(args: Record<string, any>): Promise<ToolResult> {
-    const { recipient_phone, amount, currency, provider, country, description, recipient_name } = args;
+    const { recipient_phone, amount, currency, provider, country, description, recipient_name, priority } = args;
 
     // Auto-detect country from phone number
     const detectedCountry = country || this.detectCountryFromPhone(recipient_phone);
     const detectedCurrency = currency || this.getDefaultCurrency(detectedCountry);
     
-    // Auto-select provider if not specified
-    const selectedProvider = provider || this.selectProviderForCountry(detectedCountry, 'send');
+    // Determine which provider to use
+    let selectedProvider: string;
+    let selectionReason: string = '';
+    let providerScores: ProviderScore[] = [];
+
+    if (provider === 'auto') {
+      // Use smart provider selection
+      const selection = await this.providerSelector.selectBestProvider(
+        { amount, currency: detectedCurrency },
+        detectedCountry,
+        { prioritize: priority || 'balanced' }
+      );
+      selectedProvider = selection.provider;
+      selectionReason = selection.reason;
+      providerScores = selection.scores;
+      
+      this.logger.info(`Smart selection chose ${selectedProvider}: ${selectionReason}`);
+    } else {
+      // Auto-select provider if not specified
+      selectedProvider = provider || this.selectProviderForCountry(detectedCountry, 'send');
+    }
     
     const providerInstance = this.registry.getProvider(selectedProvider);
     if (!providerInstance) {
@@ -182,11 +210,25 @@ export class ToolManager {
 
     const transaction = await providerInstance.sendMoney(params);
 
+    // Format response with smart selection info if applicable
+    let responseText = this.formatTransactionResponse(transaction, 'Send Money');
+    
+    if (provider === 'auto' && selectionReason) {
+      responseText += `\n\n🤖 Smart Selection: ${selectedProvider}\n`;
+      responseText += `   Why: ${selectionReason}\n`;
+      
+      // Add comparison if there are multiple providers
+      if (providerScores.length > 1) {
+        const alternatives = providerScores.slice(1, 3).map(s => `${s.provider} (score: ${s.score})`).join(', ');
+        responseText += `   Alternatives considered: ${alternatives}`;
+      }
+    }
+
     return {
       content: [
         {
           type: 'text',
-          text: this.formatTransactionResponse(transaction, 'Send Money'),
+          text: responseText,
         },
       ],
     };
@@ -942,6 +984,62 @@ export class ToolManager {
 
     return {
       content: [{ type: 'text', text }],
+    };
+  }
+
+  private compareProvidersTool(): ToolDefinition {
+    return {
+      name: 'compare_providers',
+      description: 'Compare payment providers for a specific transaction based on fees, speed, and reliability.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          amount: {
+            type: 'number',
+            description: 'Amount to send',
+          },
+          currency: {
+            type: 'string',
+            description: 'Currency code (KES, NGN, GHS, etc.)',
+          },
+          country: {
+            type: 'string',
+            description: 'Destination country code (KE, NG, GH, etc.)',
+          },
+        },
+        required: ['amount', 'currency', 'country'],
+      },
+    };
+  }
+
+  private async executeCompareProviders(args: Record<string, any>): Promise<ToolResult> {
+    const { amount, currency, country } = args;
+
+    const scores = await this.providerSelector.compareProviders(
+      { amount, currency },
+      country
+    );
+
+    if (scores.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '⚠️ No providers available for comparison.',
+          },
+        ],
+      };
+    }
+
+    const comparisonText = this.providerSelector.formatComparison(scores);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: comparisonText,
+        },
+      ],
     };
   }
 

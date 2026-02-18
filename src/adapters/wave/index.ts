@@ -1,13 +1,14 @@
 /**
- * Orange Money API Adapter
- * Official API docs: https://developer.orange.com/apis/payment-webdev/
- * Supports: Ivory Coast, Senegal, Mali, Burkina Faso, Guinea, etc.
+ * Wave API Adapter
+ * Official API docs: https://developer.wave.com/
+ * QR code + mobile money for Francophone Africa
+ * Supports: Senegal, Ivory Coast, Burkina Faso, Mali, Uganda
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { 
   PaymentProvider, 
-  OrangeMoneyConfig, 
+  WaveConfig, 
   SendMoneyParams, 
   RequestPaymentParams,
   RefundParams,
@@ -19,63 +20,94 @@ import {
   PaymentMethod
 } from '../../types/index.js';
 
-interface OrangeMoneyAuthResponse {
-  token_type: string;
+interface WaveAuthResponse {
   access_token: string;
+  token_type: string;
   expires_in: number;
+  scope?: string;
 }
 
-interface OrangeMoneyPaymentResponse {
-  paymentToken: string;
+interface WavePaymentRequestResponse {
+  id: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+  qrCode?: string;
   paymentUrl?: string;
-  status: string;
-  message?: string;
+  clientReference?: string;
+  expiryTime?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface OrangeMoneyTransferResponse {
-  transactionId: string;
-  status: string;
-  message?: string;
+interface WaveTransferResponse {
+  id: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+  recipientPhone: string;
+  recipientName?: string;
+  clientReference?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }
 
-interface OrangeMoneyTransactionStatus {
+interface WaveTransactionStatus {
+  id: string;
+  type: 'payment_request' | 'transfer' | 'refund';
   status: string;
-  message: string;
-  transactionId?: string;
-  amount?: string;
-  currency?: string;
-  receiver?: {
-    number: string;
+  amount: number;
+  currency: string;
+  fee?: number;
+  tax?: number;
+  totalAmount?: number;
+  sender?: {
+    phone?: string;
     name?: string;
   };
-  createdAt?: string;
-  updatedAt?: string;
+  recipient?: {
+    phone?: string;
+    name?: string;
+  };
+  clientReference?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  failureReason?: string;
 }
 
-interface OrangeMoneyBalanceResponse {
-  balances: Array<{
-    account: string;
-    balance: string;
-    currency: string;
-  }>;
+interface WaveBalanceResponse {
+  balance: number;
+  currency: string;
+  pendingBalance: number;
+  availableBalance: number;
 }
 
-export class OrangeMoneyAdapter implements PaymentProvider {
-  readonly name = 'orange_money';
-  readonly displayName = 'Orange Money';
-  readonly countries = ['CI', 'SN', 'ML', 'BF', 'GN', 'CG', 'MG'];
-  readonly currencies = ['XOF', 'XAF', 'GNF', 'MGA'];
-  readonly supportedMethods: PaymentMethod[] = ['mobile_money'];
+interface WaveQRCodeResponse {
+  qrCodeData: string;
+  qrCodeImageUrl: string;
+  paymentId: string;
+  expiryTime: string;
+}
+
+export class WaveAdapter implements PaymentProvider {
+  readonly name = 'wave';
+  readonly displayName = 'Wave';
+  readonly countries = ['SN', 'CI', 'BF', 'ML', 'UG'];
+  readonly currencies = ['XOF', 'XAF', 'UGX'];
+  readonly supportedMethods: PaymentMethod[] = ['mobile_money', 'qr_code'];
 
   private accessToken?: string;
   private tokenExpiry?: Date;
   private client: AxiosInstance;
   private baseUrl: string;
 
-  constructor(public readonly config: OrangeMoneyConfig) {
+  constructor(public readonly config: WaveConfig) {
     this.baseUrl = config.environment === 'production'
-      ? 'https://api.orange.com/orange-money-webdev'
-      : 'https://api.orange.com/orange-money-webdev/dev';
+      ? 'https://api.wave.com/v1'
+      : 'https://sandbox.wave.com/v1';
 
     this.client = axios.create({
       timeout: config.timeoutMs || 30000,
@@ -115,9 +147,9 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
   async initialize(config: Record<string, any>): Promise<void> {
     // Validate required config
-    if (!this.config.clientId || !this.config.clientSecret) {
+    if (!this.config.apiKey || !this.config.apiSecret) {
       throw new PaymentError(
-        'Orange Money client ID and secret are required',
+        'Wave API key and secret are required',
         ErrorCodes.INVALID_CONFIG,
         this.name
       );
@@ -125,7 +157,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
     if (!this.config.merchantId) {
       throw new PaymentError(
-        'Orange Money merchant ID is required',
+        'Wave merchant ID is required',
         ErrorCodes.INVALID_CONFIG,
         this.name
       );
@@ -138,12 +170,15 @@ export class OrangeMoneyAdapter implements PaymentProvider {
   private async authenticate(): Promise<void> {
     try {
       const auth = Buffer.from(
-        `${this.config.clientId}:${this.config.clientSecret}`
+        `${this.config.apiKey}:${this.config.apiSecret}`
       ).toString('base64');
 
-      const response = await this.client.post<OrangeMoneyAuthResponse>(
-        'https://api.orange.com/oauth/token',
-        'grant_type=client_credentials',
+      const response = await this.client.post<WaveAuthResponse>(
+        `${this.baseUrl}/oauth/token`,
+        {
+          grant_type: 'client_credentials',
+          scope: 'payments transfers',
+        },
         {
           headers: {
             Authorization: `Basic ${auth}`,
@@ -159,7 +194,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
     } catch (error) {
       const axiosError = error as AxiosError;
       throw new PaymentError(
-        `Orange Money authentication failed: ${axiosError.message}`,
+        `Wave authentication failed: ${axiosError.message}`,
         ErrorCodes.AUTHENTICATION_FAILED,
         this.name,
         undefined,
@@ -179,25 +214,25 @@ export class OrangeMoneyAdapter implements PaymentProvider {
     let cleaned = phone.replace(/\D/g, '');
     // Ensure it starts with the country code without the +
     if (cleaned.startsWith('0')) {
-      // Default to Ivory Coast if starts with 0
-      cleaned = '225' + cleaned.substring(1);
+      // Default to Senegal if starts with 0
+      cleaned = '221' + cleaned.substring(1);
     }
     return cleaned;
   }
 
-  private mapOrangeMoneyStatus(status: string): TransactionStatus {
+  private mapWaveStatus(status: string): TransactionStatus {
     const statusMap: Record<string, TransactionStatus> = {
-      'PENDING': 'pending',
-      'INITIATED': 'pending',
-      'SUCCESS': 'completed',
-      'SUCCESSFUL': 'completed',
-      'FAILED': 'failed',
-      'CANCELLED': 'cancelled',
-      'REJECTED': 'failed',
-      'REFUNDED': 'refunded',
-      'PROCESSING': 'processing',
+      'pending': 'pending',
+      'processing': 'processing',
+      'succeeded': 'completed',
+      'successful': 'completed',
+      'completed': 'completed',
+      'failed': 'failed',
+      'cancelled': 'cancelled',
+      'canceled': 'cancelled',
+      'refunded': 'refunded',
     };
-    return statusMap[status?.toUpperCase()] || 'pending';
+    return statusMap[status?.toLowerCase()] || 'pending';
   }
 
   private handleError(error: unknown, operation: string, transactionId?: string): never {
@@ -214,7 +249,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
       if (status === 401) {
         throw new PaymentError(
-          `Orange Money ${operation} failed: Authentication expired`,
+          `Wave ${operation} failed: Authentication expired`,
           ErrorCodes.AUTHENTICATION_FAILED,
           this.name,
           transactionId,
@@ -222,9 +257,19 @@ export class OrangeMoneyAdapter implements PaymentProvider {
         );
       }
 
+      if (status === 403) {
+        throw new PaymentError(
+          `Wave ${operation} failed: Permission denied`,
+          ErrorCodes.PERMISSION_DENIED,
+          this.name,
+          transactionId,
+          false
+        );
+      }
+
       if (status === 400) {
         throw new PaymentError(
-          `Orange Money ${operation} failed: ${data.message || 'Bad request'}`,
+          `Wave ${operation} failed: ${data.message || data.error || 'Bad request'}`,
           ErrorCodes.PROVIDER_ERROR,
           this.name,
           transactionId,
@@ -234,7 +279,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
       if (status === 404) {
         throw new PaymentError(
-          `Orange Money ${operation} failed: Transaction not found`,
+          `Wave ${operation} failed: Transaction not found`,
           ErrorCodes.TRANSACTION_NOT_FOUND,
           this.name,
           transactionId,
@@ -244,7 +289,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
       if (status === 409) {
         throw new PaymentError(
-          `Orange Money ${operation} failed: Duplicate transaction`,
+          `Wave ${operation} failed: Duplicate transaction`,
           ErrorCodes.DUPLICATE_TRANSACTION,
           this.name,
           transactionId,
@@ -252,8 +297,18 @@ export class OrangeMoneyAdapter implements PaymentProvider {
         );
       }
 
+      if (status === 422) {
+        throw new PaymentError(
+          `Wave ${operation} failed: ${data.message || 'Invalid data'}`,
+          ErrorCodes.INVALID_AMOUNT,
+          this.name,
+          transactionId,
+          false
+        );
+      }
+
       throw new PaymentError(
-        `Orange Money ${operation} failed: ${data.message || `HTTP ${status}`}`,
+        `Wave ${operation} failed: ${data.message || data.error || `HTTP ${status}`}`,
         ErrorCodes.PROVIDER_ERROR,
         this.name,
         transactionId,
@@ -263,7 +318,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
     if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
       throw new PaymentError(
-        `Orange Money ${operation} timed out`,
+        `Wave ${operation} timed out`,
         ErrorCodes.TIMEOUT_ERROR,
         this.name,
         transactionId,
@@ -272,7 +327,7 @@ export class OrangeMoneyAdapter implements PaymentProvider {
     }
 
     throw new PaymentError(
-      `Orange Money ${operation} failed: ${axiosError.message}`,
+      `Wave ${operation} failed: ${axiosError.message}`,
       ErrorCodes.NETWORK_ERROR,
       this.name,
       transactionId,
@@ -285,38 +340,32 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
     if (!params.recipient.phone) {
       throw new PaymentError(
-        'Phone number is required for Orange Money transfers',
+        'Phone number is required for Wave transfers',
         ErrorCodes.MISSING_REQUIRED_FIELD,
         this.name
       );
     }
 
-    const id = `orange_transfer_${Date.now()}`;
+    const id = `wave_transfer_${Date.now()}`;
 
     try {
       const payload = {
-        sender: {
-          merchantId: this.config.merchantId,
-        },
-        receiver: {
-          number: this.formatPhone(params.recipient.phone.formatted || params.recipient.phone.nationalNumber),
-          name: params.recipient.name,
-        },
-        amount: {
-          value: params.amount.amount,
-          currency: params.amount.currency,
-        },
-        reference: params.metadata?.reference || `OM_${Date.now()}`,
+        amount: params.amount.amount,
+        currency: params.amount.currency,
+        recipientPhone: this.formatPhone(params.recipient.phone.formatted || params.recipient.phone.nationalNumber),
+        recipientName: params.recipient.name,
+        clientReference: params.metadata?.reference || `WAVE_TRF_${Date.now()}`,
         description: params.description || 'Transfer',
         callbackUrl: params.callbackUrl,
       };
 
-      const response = await this.client.post<OrangeMoneyTransferResponse>(
-        `${this.baseUrl}/v1/transfer`,
+      const response = await this.client.post<WaveTransferResponse>(
+        `${this.baseUrl}/transfers`,
         payload,
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
+            'X-Merchant-ID': this.config.merchantId,
           },
         }
       );
@@ -325,9 +374,9 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
       return {
         id,
-        providerTransactionId: data.transactionId,
+        providerTransactionId: data.id,
         provider: this.name,
-        status: this.mapOrangeMoneyStatus(data.status),
+        status: this.mapWaveStatus(data.status),
         amount: params.amount,
         customer: {
           name: params.recipient.name,
@@ -336,11 +385,11 @@ export class OrangeMoneyAdapter implements PaymentProvider {
         description: params.description,
         metadata: {
           ...params.metadata,
-          transferReference: payload.reference,
-          statusMessage: data.message,
+          clientReference: data.clientReference,
         },
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+        completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
       };
     } catch (error) {
       this.handleError(error, 'sendMoney', id);
@@ -350,39 +399,30 @@ export class OrangeMoneyAdapter implements PaymentProvider {
   async requestPayment(params: RequestPaymentParams): Promise<Transaction> {
     await this.ensureAuthenticated();
 
-    if (!params.customer.phone) {
-      throw new PaymentError(
-        'Customer phone number is required for Orange Money payment requests',
-        ErrorCodes.MISSING_REQUIRED_FIELD,
-        this.name
-      );
-    }
-
-    const id = `orange_${Date.now()}`;
+    const id = `wave_${Date.now()}`;
 
     try {
-      const payload = {
-        merchantId: this.config.merchantId,
-        subscriber: {
-          number: this.formatPhone(params.customer.phone.formatted || params.customer.phone.nationalNumber),
-          country: params.customer.country || 'CI',
-        },
-        amount: {
-          value: params.amount.amount,
-          currency: params.amount.currency,
-        },
-        reference: params.metadata?.reference || `OMPAY_${Date.now()}`,
+      const payload: any = {
+        amount: params.amount.amount,
+        currency: params.amount.currency,
+        clientReference: params.metadata?.reference || `WAVE_PAY_${Date.now()}`,
         description: params.description || 'Payment request',
         callbackUrl: params.callbackUrl,
         expiryMinutes: params.expiryMinutes || 30,
       };
 
-      const response = await this.client.post<OrangeMoneyPaymentResponse>(
-        `${this.baseUrl}/v1/payment`,
+      // If customer phone is provided, include it for targeted payment request
+      if (params.customer.phone?.formatted) {
+        payload.customerPhone = this.formatPhone(params.customer.phone.formatted);
+      }
+
+      const response = await this.client.post<WavePaymentRequestResponse>(
+        `${this.baseUrl}/payment-requests`,
         payload,
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
+            'X-Merchant-ID': this.config.merchantId,
           },
         }
       );
@@ -391,69 +431,113 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
       return {
         id,
-        providerTransactionId: data.paymentToken,
+        providerTransactionId: data.id,
         provider: this.name,
-        status: this.mapOrangeMoneyStatus(data.status),
+        status: this.mapWaveStatus(data.status),
         amount: params.amount,
         customer: params.customer,
         description: params.description,
         metadata: {
           ...params.metadata,
+          clientReference: data.clientReference,
+          qrCode: data.qrCode,
           paymentUrl: data.paymentUrl,
-          reference: payload.reference,
-          statusMessage: data.message,
+          expiryTime: data.expiryTime,
         },
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
       };
     } catch (error) {
       this.handleError(error, 'requestPayment', id);
     }
   }
 
-  async verifyTransaction(id: string): Promise<Transaction> {
+  /**
+   * Generate a QR code for payment
+   * This is specific to Wave and allows creating QR codes for in-person payments
+   */
+  async generateQRCode(
+    amount: Money,
+    description?: string,
+    expiryMinutes: number = 30
+  ): Promise<{
+    qrCodeData: string;
+    qrCodeImageUrl: string;
+    paymentId: string;
+    expiryTime: string;
+  }> {
     await this.ensureAuthenticated();
 
-    const transactionId = id.replace('orange_', '').replace('orange_transfer_', '');
-
     try {
-      const response = await this.client.get<OrangeMoneyTransactionStatus>(
-        `${this.baseUrl}/v1/transaction/${transactionId}`,
+      const response = await this.client.post<WaveQRCodeResponse>(
+        `${this.baseUrl}/qr-codes`,
+        {
+          amount: amount.amount,
+          currency: amount.currency,
+          description: description || 'QR Payment',
+          expiryMinutes,
+        },
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
+            'X-Merchant-ID': this.config.merchantId,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error, 'generateQRCode');
+    }
+  }
+
+  async verifyTransaction(id: string): Promise<Transaction> {
+    await this.ensureAuthenticated();
+
+    const transactionId = id.replace('wave_', '').replace('wave_transfer_', '').replace('wave_request_', '');
+
+    try {
+      const response = await this.client.get<WaveTransactionStatus>(
+        `${this.baseUrl}/transactions/${transactionId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'X-Merchant-ID': this.config.merchantId,
           },
         }
       );
 
       const data = response.data;
-      const status = this.mapOrangeMoneyStatus(data.status);
+      const status = this.mapWaveStatus(data.status);
 
       return {
         id,
-        providerTransactionId: data.transactionId || transactionId,
+        providerTransactionId: data.id,
         provider: this.name,
         status,
         amount: {
-          amount: parseFloat(data.amount || '0'),
-          currency: data.currency || 'XOF',
+          amount: data.amount,
+          currency: data.currency,
         },
         customer: {
-          phone: data.receiver?.number ? {
-            formatted: data.receiver.number,
-            countryCode: data.receiver.number.substring(0, 3),
-            nationalNumber: data.receiver.number.substring(3),
+          phone: data.recipient?.phone ? {
+            formatted: data.recipient.phone,
+            countryCode: data.recipient.phone.substring(0, 3),
+            nationalNumber: data.recipient.phone.substring(3),
           } : undefined,
-          name: data.receiver?.name,
+          name: data.recipient?.name || data.sender?.name,
         },
-        description: data.message,
+        description: data.description,
         metadata: {
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
+          clientReference: data.clientReference,
+          fee: data.fee,
+          tax: data.tax,
+          totalAmount: data.totalAmount,
         },
-        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-        updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
-        completedAt: status === 'completed' ? new Date() : undefined,
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+        completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+        failureReason: data.failureReason,
       };
     } catch (error) {
       this.handleError(error, 'verifyTransaction', id);
@@ -463,27 +547,26 @@ export class OrangeMoneyAdapter implements PaymentProvider {
   async refund(params: RefundParams): Promise<Transaction> {
     await this.ensureAuthenticated();
 
-    const id = `orange_refund_${Date.now()}`;
+    const id = `wave_refund_${Date.now()}`;
 
     try {
       const payload: any = {
         originalTransactionId: params.originalTransactionId,
-        amount: params.amount?.amount,
-        currency: params.amount?.currency,
         reason: params.reason || 'Customer request',
       };
-      
-      // Add callback URL if available in params
-      if ((params as any).callbackUrl) {
-        payload.callbackUrl = (params as any).callbackUrl;
+
+      if (params.amount) {
+        payload.amount = params.amount.amount;
+        payload.currency = params.amount.currency;
       }
 
-      const response = await this.client.post<OrangeMoneyTransferResponse>(
-        `${this.baseUrl}/v1/refund`,
+      const response = await this.client.post<WaveTransferResponse>(
+        `${this.baseUrl}/refunds`,
         payload,
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
+            'X-Merchant-ID': this.config.merchantId,
           },
         }
       );
@@ -492,18 +575,18 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
       return {
         id,
-        providerTransactionId: data.transactionId,
+        providerTransactionId: data.id,
         provider: this.name,
-        status: this.mapOrangeMoneyStatus(data.status),
+        status: this.mapWaveStatus(data.status),
         amount: params.amount || { amount: 0, currency: 'XOF' },
         customer: {},
         description: `Refund: ${params.reason || 'Customer request'}`,
         metadata: {
           originalTransaction: params.originalTransactionId,
-          statusMessage: data.message,
         },
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+        completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
       };
     } catch (error) {
       this.handleError(error, 'refund', id);
@@ -514,8 +597,8 @@ export class OrangeMoneyAdapter implements PaymentProvider {
     await this.ensureAuthenticated();
 
     try {
-      const response = await this.client.get<OrangeMoneyBalanceResponse>(
-        `${this.baseUrl}/v1/merchant/balance`,
+      const response = await this.client.get<WaveBalanceResponse>(
+        `${this.baseUrl}/merchant/balance`,
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
@@ -525,11 +608,10 @@ export class OrangeMoneyAdapter implements PaymentProvider {
       );
 
       const data = response.data;
-      const primaryBalance = data.balances[0];
 
       return {
-        amount: parseFloat(primaryBalance?.balance || '0'),
-        currency: primaryBalance?.currency || 'XOF',
+        amount: data.availableBalance,
+        currency: data.currency,
       };
     } catch (error) {
       this.handleError(error, 'getBalance');
@@ -538,14 +620,12 @@ export class OrangeMoneyAdapter implements PaymentProvider {
 
   async validatePhone(phone: string): Promise<boolean> {
     const cleanPhone = phone.replace(/\D/g, '');
-    // Orange Money phone formats by country:
-    // Ivory Coast: 225XXXXXXXX
+    // Wave phone formats by country:
     // Senegal: 2217XXXXXXXX
-    // Mali: 223XXXXXXXX
+    // Ivory Coast: 225XXXXXXXX
     // Burkina Faso: 226XXXXXXXX
-    // Guinea: 224XXXXXXXX
-    // Congo: 242XXXXXXXX
-    // Madagascar: 261XXXXXXXX
-    return /^(225|221|223|226|224|242|261)\d{8,9}$/.test(cleanPhone);
+    // Mali: 223XXXXXXXX
+    // Uganda: 2567XXXXXXXX
+    return /^(221|225|226|223|256)\d{8,9}$/.test(cleanPhone);
   }
 }

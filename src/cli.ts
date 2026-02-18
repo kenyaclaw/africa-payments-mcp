@@ -74,15 +74,13 @@ async function printBanner() {
   
   console.log(gradient(['#008751', '#F4D03F', '#FF6B35']).multiline(figletText));
   console.log(chalk.dim('═'.repeat(60)));
-  console.log(chalk.center(
-    colors.muted('Unified MCP Server for African Payment Providers')
-  ));
+  console.log(colors.muted('     Unified MCP Server for African Payment Providers'));
   console.log(chalk.dim('═'.repeat(60)));
   console.log();
 }
 
 // Create a nice box
-function createBox(title: string, content: string, options: boxen.Options = {}) {
+function createBox(title: string, content: string, options: Record<string, unknown> = {}) {
   return boxen(content, {
     title: colors.bold(title),
     titleAlignment: 'center',

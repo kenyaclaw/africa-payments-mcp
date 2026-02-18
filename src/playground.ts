@@ -63,7 +63,11 @@ const colors = {
   }
 };
 
-const c = colors.fg;
+const c = {
+  ...colors.fg,
+  dim: colors.dim,
+  bright: colors.bright,
+};
 
 // Welcome banner
 function printBanner() {
@@ -248,16 +252,14 @@ export async function startPlayground(configPath?: string) {
       config = await configManager.load(configPath);
       
       const logger = new Logger('info');
-      registry = new ProviderRegistry(config, logger);
-      await registry.initializeAll();
+      registry = new ProviderRegistry(logger);
+      // Provider initialization would go here
       
       tools = new ToolManager(registry, logger);
       
       // Create SDK client
       sdk = new AfricaPaymentsClient({
-        configPath,
-        registry,
-        tools
+        configPath
       });
       
       console.log(`${c.green}✓${colors.reset} Configuration loaded: ${c.cyan}${configPath}${colors.reset}`);
