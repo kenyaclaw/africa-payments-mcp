@@ -216,3 +216,11 @@ MIT License — use it, modify it, build the future of African fintech.
 <p align="center">
   <img src="docs/assets/africa-payments-logo.svg" alt="Africa Payments MCP" width="200"/>
 </p>
+
+
+## 🚀 Launch Materials
+
+Ready to launch? Check out our complete launch kit:
+📋 **[LAUNCH.md](docs/LAUNCH.md)** - Twitter, HN, Dev.to, LinkedIn, Product Hunt templates
+
+
