@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { Logger } from '../../utils/logger.js';
+import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   PaymentEventData,
@@ -93,12 +93,12 @@ export interface MpesaReversalCallback {
 // ==================== Handler Class ====================
 
 export class MpesaWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier
   ) {

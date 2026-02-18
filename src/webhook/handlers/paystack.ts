@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { Logger } from '../../utils/logger.js';
+import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   PaymentEventData,
@@ -147,7 +147,7 @@ export interface PaystackRefundData {
 // ==================== Handler Class ====================
 
 export class PaystackWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private webhookSecret?: string;

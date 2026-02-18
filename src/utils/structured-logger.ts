@@ -269,4 +269,8 @@ export class Logger {
   error(message: string): void {
     this.structuredLogger.error(message);
   }
+
+  static generateCorrelationId(): string {
+    return StructuredLogger.generateCorrelationId();
+  }
 }

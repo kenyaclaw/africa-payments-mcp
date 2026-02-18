@@ -66,8 +66,33 @@ export type {
   IntaSendWalletNotification,
 } from './handlers/intasend.js';
 
+export type {
+  OrangeMoneyPaymentCallback,
+  OrangeMoneyTransferCallback,
+  OrangeMoneyRefundCallback,
+} from './handlers/orange-money.js';
+
+export type {
+  ChipperCashWebhookPayload,
+  ChipperCashEventType,
+  ChipperCashTransferData,
+  ChipperCashPaymentRequestData,
+  ChipperCashRefundData,
+} from './handlers/chipper-cash.js';
+
+export type {
+  WaveWebhookPayload,
+  WaveEventType,
+  WavePaymentData,
+  WaveTransferData,
+  WaveRefundData,
+} from './handlers/wave.js';
+
 // Handler Classes
 export { MpesaWebhookHandler, createMpesaWebhookHandler } from './handlers/mpesa.js';
 export { PaystackWebhookHandler, createPaystackWebhookHandler } from './handlers/paystack.js';
 export { MTNMoMoWebhookHandler, createMTNMoMoWebhookHandler } from './handlers/mtn-momo.js';
 export { IntaSendWebhookHandler, createIntaSendWebhookHandler } from './handlers/intasend.js';
+export { OrangeMoneyWebhookHandler, createOrangeMoneyWebhookHandler } from './handlers/orange-money.js';
+export { ChipperCashWebhookHandler, createChipperCashWebhookHandler } from './handlers/chipper-cash.js';
+export { WaveWebhookHandler, createWaveWebhookHandler } from './handlers/wave.js';

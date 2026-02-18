@@ -5,7 +5,7 @@
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { URL } from 'url';
-import { StructuredLogger, getGlobalLogger } from '../utils/structured-logger.js';
+import { Logger, StructuredLogger, getGlobalLogger } from '../utils/structured-logger.js';
 import { MetricsCollector, getGlobalMetrics } from '../utils/metrics.js';
 import { CircuitBreakerRegistry, getGlobalCircuitBreakerRegistry } from '../utils/circuit-breaker.js';
 import { IdempotencyStore, getGlobalIdempotencyStore } from '../utils/idempotency.js';

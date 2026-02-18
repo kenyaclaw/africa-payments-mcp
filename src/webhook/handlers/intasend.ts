@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { Logger } from '../../utils/logger.js';
+import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   createEventId 
@@ -86,13 +86,13 @@ export interface IntaSendWalletNotification {
 // ==================== Handler Class ====================
 
 export class IntaSendWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private webhookSecret?: string;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier,
     webhookSecret?: string

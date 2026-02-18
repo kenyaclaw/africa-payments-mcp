@@ -5,7 +5,7 @@
 
 import { EventEmitter } from 'events';
 import { Transaction, TransactionStatus } from '../types/index.js';
-import { Logger } from '../utils/logger.js';
+import { StructuredLogger } from '../utils/structured-logger.js';
 
 // ==================== Event Types ====================
 
@@ -54,11 +54,11 @@ export type WebhookReceivedHandler = (event: WebhookEvent) => void | Promise<voi
 // ==================== Event Emitter Class ====================
 
 export class PaymentEventEmitter extends EventEmitter {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private processedEvents: Set<string> = new Set();
   private maxCacheSize: number = 10000; // Prevent memory leak
 
-  constructor(logger: Logger) {
+  constructor(logger: StructuredLogger) {
     super();
     this.logger = logger;
     this.setupDefaultListeners();
@@ -234,9 +234,9 @@ export class PaymentEventEmitter extends EventEmitter {
 
 let globalEventEmitter: PaymentEventEmitter | null = null;
 
-export function getGlobalEventEmitter(logger?: Logger): PaymentEventEmitter {
+export function getGlobalEventEmitter(logger?: StructuredLogger): PaymentEventEmitter {
   if (!globalEventEmitter) {
-    globalEventEmitter = new PaymentEventEmitter(logger || new Logger());
+    globalEventEmitter = new PaymentEventEmitter(logger || new StructuredLogger());
   }
   return globalEventEmitter;
 }

@@ -5,6 +5,7 @@
 import { ProviderRegistry } from './registry.js';
 import { Logger } from './logger.js';
 import { ProviderSelector, ProviderScore } from './provider-selector.js';
+import { SimulationMode, getSimulationMode } from './simulation.js';
 import { 
   ToolDefinition, 
   ToolResult, 
@@ -19,12 +20,14 @@ import {
 
 export class ToolManager {
   private providerSelector: ProviderSelector;
+  private simulationMode: SimulationMode;
 
   constructor(
     private registry: ProviderRegistry,
     private logger: Logger
   ) {
     this.providerSelector = new ProviderSelector(registry, logger);
+    this.simulationMode = getSimulationMode(logger);
   }
 
   getAllTools(): ToolDefinition[] {

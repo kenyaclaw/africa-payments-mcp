@@ -4,7 +4,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'crypto';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/structured-logger.js';
 
 export interface VerificationResult {
   valid: boolean;
@@ -28,9 +28,9 @@ export interface MpesaStkCallback {
 }
 
 export class WebhookVerifier {
-  private logger: Logger;
+  private logger: StructuredLogger;
 
-  constructor(logger: Logger) {
+  constructor(logger: StructuredLogger) {
     this.logger = logger;
   }
 
@@ -351,6 +351,174 @@ export class WebhookVerifier {
     }
   }
 
+  // ==================== Orange Money Verification ====================
+
+  /**
+   * Verify Orange Money webhook
+   * Orange Money uses OAuth2 Bearer token authentication
+   */
+  verifyOrangeMoneyWebhook(payload: any, bearerToken?: string, expectedToken?: string): VerificationResult {
+    try {
+      if (!payload || typeof payload !== 'object') {
+        return { valid: false, error: 'Invalid payload format' };
+      }
+
+      // Validate required fields based on callback type
+      if (payload.paymentToken) {
+        if (!payload.status || !payload.amount) {
+          return { valid: false, error: 'Missing required payment fields' };
+        }
+      } else if (payload.transactionId) {
+        if (!payload.status) {
+          return { valid: false, error: 'Missing required transaction fields' };
+        }
+      } else {
+        return { valid: false, error: 'Unknown Orange Money webhook format' };
+      }
+
+      // Optional bearer token validation
+      if (expectedToken && bearerToken !== expectedToken) {
+        return { valid: false, error: 'Invalid bearer token' };
+      }
+
+      return {
+        valid: true,
+        details: {
+          type: payload.paymentToken ? 'payment' : 'transaction',
+          status: payload.status,
+          amount: payload.amount,
+          transactionId: payload.transactionId || payload.paymentToken,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Orange Money verification error: ${error}`);
+      return { valid: false, error: 'Verification failed' };
+    }
+  }
+
+  // ==================== Chipper Cash Verification ====================
+
+  /**
+   * Verify Chipper Cash webhook signature
+   * Chipper Cash uses HMAC-SHA256 signature verification
+   */
+  verifyChipperCashWebhook(payload: any, signature: string, secret: string): VerificationResult {
+    try {
+      if (!signature) {
+        return { valid: false, error: 'Missing signature' };
+      }
+
+      if (!secret) {
+        this.logger.warn('Chipper Cash webhook secret not configured');
+        return { valid: true, details: { verified: false, reason: 'secret_not_configured' } };
+      }
+
+      // Compute expected signature
+      const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      const expectedSignature = createHmac('sha256', secret)
+        .update(payloadString, 'utf8')
+        .digest('hex');
+
+      // Timing-safe comparison
+      const sigBuffer = Buffer.from(signature, 'hex');
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+      if (sigBuffer.length !== expectedBuffer.length) {
+        return { valid: false, error: 'Invalid signature length' };
+      }
+
+      const isValid = timingSafeEqual(sigBuffer, expectedBuffer);
+
+      if (!isValid) {
+        this.logger.warn('Chipper Cash signature mismatch');
+        return { valid: false, error: 'Invalid signature' };
+      }
+
+      // Validate event structure
+      if (!payload.event) {
+        return { valid: false, error: 'Missing event type' };
+      }
+
+      if (!payload.data) {
+        return { valid: false, error: 'Missing event data' };
+      }
+
+      return {
+        valid: true,
+        details: {
+          verified: true,
+          event: payload.event,
+          transactionId: payload.data.id,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Chipper Cash verification error: ${error}`);
+      return { valid: false, error: 'Verification failed' };
+    }
+  }
+
+  // ==================== Wave Verification ====================
+
+  /**
+   * Verify Wave webhook signature
+   * Wave uses HMAC-SHA256 signature verification
+   */
+  verifyWaveWebhook(payload: any, signature: string, secret: string): VerificationResult {
+    try {
+      if (!signature) {
+        return { valid: false, error: 'Missing signature' };
+      }
+
+      if (!secret) {
+        this.logger.warn('Wave webhook secret not configured');
+        return { valid: true, details: { verified: false, reason: 'secret_not_configured' } };
+      }
+
+      // Compute expected signature
+      const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      const expectedSignature = createHmac('sha256', secret)
+        .update(payloadString, 'utf8')
+        .digest('hex');
+
+      // Timing-safe comparison
+      const sigBuffer = Buffer.from(signature, 'hex');
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+      if (sigBuffer.length !== expectedBuffer.length) {
+        return { valid: false, error: 'Invalid signature length' };
+      }
+
+      const isValid = timingSafeEqual(sigBuffer, expectedBuffer);
+
+      if (!isValid) {
+        this.logger.warn('Wave signature mismatch');
+        return { valid: false, error: 'Invalid signature' };
+      }
+
+      // Validate event structure
+      if (!payload.event) {
+        return { valid: false, error: 'Missing event type' };
+      }
+
+      if (!payload.data) {
+        return { valid: false, error: 'Missing event data' };
+      }
+
+      return {
+        valid: true,
+        details: {
+          verified: true,
+          event: payload.event,
+          transactionId: payload.data.id,
+          type: payload.data.type,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Wave verification error: ${error}`);
+      return { valid: false, error: 'Verification failed' };
+    }
+  }
+
   // ==================== Generic Utilities ====================
 
   /**
@@ -392,6 +560,9 @@ export class WebhookVerifier {
       mpesa: ['x-mpesa-signature'], // M-Pesa typically doesn't use signatures
       'mtn-momo': ['x-api-key', 'X-API-Key', 'authorization'],
       'airtel-money': ['authorization', 'Authorization'],
+      'orange-money': ['authorization', 'Authorization'],
+      'chipper-cash': ['x-chipper-signature', 'X-Chipper-Signature', 'x-signature'],
+      'wave': ['x-wave-signature', 'X-Wave-Signature', 'x-signature'],
     };
 
     const possibleHeaders = headerMap[provider] || [];
@@ -448,9 +619,9 @@ export class WebhookVerifier {
 
 let globalVerifier: WebhookVerifier | null = null;
 
-export function getGlobalVerifier(logger?: Logger): WebhookVerifier {
+export function getGlobalVerifier(logger?: StructuredLogger): WebhookVerifier {
   if (!globalVerifier) {
-    globalVerifier = new WebhookVerifier(logger || new Logger());
+    globalVerifier = new WebhookVerifier(logger || new StructuredLogger());
   }
   return globalVerifier;
 }

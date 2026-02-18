@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { Logger } from '../../utils/logger.js';
+import { StructuredLogger, Logger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   createEventId 
@@ -77,13 +77,13 @@ export interface MTNMoMoCollectionCallback {
 // ==================== Handler Class ====================
 
 export class MTNMoMoWebhookHandler {
-  private logger: Logger;
+  private logger: StructuredLogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private apiKey?: string;
 
   constructor(
-    logger: Logger,
+    logger: StructuredLogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier,
     apiKey?: string
