@@ -12,6 +12,7 @@ import readline from 'readline';
 import { createServer } from './server.js';
 import { ConfigManager } from './utils/config.js';
 import { Logger } from './utils/logger.js';
+import { parseNaturalLanguageConfig, generateConfigFromParsed, formatParsedConfig } from './utils/natural-config.js';
 
 export const program = new Command();
 
@@ -147,6 +148,88 @@ program
       process.exit(1);
     } finally {
       rl.close();
+    }
+  });
+
+// Setup command - Natural language config creation
+program
+  .command('setup')
+  .description('Create configuration from natural language description')
+  .argument('<description>', 'Natural language description of desired setup (e.g., "I want M-Pesa in Kenya and Paystack in Nigeria")')
+  .option('-o, --output <path>', 'Output path for config file', 'config.json')
+  .option('-y, --yes', 'Skip confirmation and create config immediately')
+  .action(async (description, options) => {
+    console.log('🌍 Africa Payments MCP - Natural Language Setup\n');
+    console.log(`Input: "${description}"\n`);
+
+    // Parse the natural language input
+    const parsed = parseNaturalLanguageConfig(description);
+    
+    // Display parsed intent
+    console.log(formatParsedConfig(parsed));
+    
+    // Check confidence level
+    if (parsed.confidence < 0.5) {
+      console.log('\n⚠️ Low confidence detection. Please be more specific:');
+      console.log('   • Mention specific providers (M-Pesa, Paystack, MTN MoMo, etc.)');
+      console.log('   • Mention specific countries (Kenya, Nigeria, Ghana, etc.)');
+      console.log('\nExample: "I want M-Pesa for Kenya and Paystack for Nigeria"');
+      process.exit(1);
+    }
+    
+    // Generate configuration
+    const config = generateConfigFromParsed(parsed);
+    
+    // Show preview
+    console.log('\n📄 Configuration Preview:');
+    console.log('─'.repeat(40));
+    console.log(JSON.stringify(config, null, 2));
+    console.log('─'.repeat(40));
+
+    // Interactive confirmation unless --yes flag
+    if (!options.yes) {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+
+      try {
+        const answer = await askQuestion(rl, '\n✅ Create this configuration? (y/n/edit): ');
+        
+        if (answer.toLowerCase() === 'edit') {
+          console.log('\n📝 Switching to interactive mode...\n');
+          rl.close();
+          // Trigger the init command
+          await program.parseAsync(['node', 'cli', 'init', '-o', options.output]);
+          return;
+        }
+        
+        if (answer.toLowerCase() !== 'y' && answer.toLowerCase() !== 'yes') {
+          console.log('\n❌ Configuration cancelled.');
+          console.log('\nTip: Use the "init" command for full interactive setup:');
+          console.log('  africa-payments-mcp init');
+          process.exit(0);
+        }
+      } finally {
+        rl.close();
+      }
+    }
+
+    // Write configuration file
+    try {
+      const outputPath = path.resolve(options.output);
+      await fs.writeFile(outputPath, JSON.stringify(config, null, 2));
+
+      console.log(`\n✅ Configuration saved to: ${outputPath}`);
+      console.log('\nNext steps:');
+      console.log(`  1. Review and edit credentials: ${outputPath}`);
+      console.log(`  2. Validate: africa-payments-mcp validate --config ${outputPath}`);
+      console.log(`  3. Test: africa-payments-mcp test --config ${outputPath}`);
+      console.log(`  4. Start server: africa-payments-mcp --config ${outputPath}`);
+      
+    } catch (error) {
+      console.error('\n❌ Error saving configuration:', error);
+      process.exit(1);
     }
   });
 

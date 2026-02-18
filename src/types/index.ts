@@ -174,6 +174,9 @@ export interface ServerConfig {
     intasend?: IntaSendConfig;
     mtn_momo?: MTNMoMoConfig;
     airtel_money?: AirtelMoneyConfig;
+    orange_money?: OrangeMoneyConfig;
+    chipper_cash?: ChipperCashConfig;
+    wave?: WaveConfig;
   };
   defaults: {
     currency: string;
@@ -222,6 +225,26 @@ export interface MTNMoMoConfig extends ProviderConfig {
 export interface AirtelMoneyConfig extends ProviderConfig {
   clientId: string;
   clientSecret: string;
+  environment: 'sandbox' | 'production';
+}
+
+export interface OrangeMoneyConfig extends ProviderConfig {
+  clientId: string;
+  clientSecret: string;
+  merchantId: string;
+  environment: 'sandbox' | 'production';
+}
+
+export interface ChipperCashConfig extends ProviderConfig {
+  apiKey: string;
+  apiSecret: string;
+  environment: 'sandbox' | 'production';
+}
+
+export interface WaveConfig extends ProviderConfig {
+  apiKey: string;
+  apiSecret: string;
+  merchantId: string;
   environment: 'sandbox' | 'production';
 }
 

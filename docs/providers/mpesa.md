@@ -15,12 +15,18 @@ M-Pesa is Africa's leading mobile money service, operated by Safaricom in Kenya 
 
 ## Setup Instructions
 
+::: tip New to M-Pesa?
+For a detailed step-by-step guide with screenshots and troubleshooting, see our [M-Pesa Sandbox Setup Guide](./mpesa-sandbox-setup.md).
+:::
+
 ### 1. Create Daraja API Account
 
 1. Visit [Daraja Portal](https://developer.safaricom.co.ke/)
 2. Register for a developer account
 3. Create a new app
 4. Select **Lipa na M-Pesa Online** product
+
+For detailed instructions with screenshots, see the [Sandbox Setup Guide](./mpesa-sandbox-setup.md#step-1-create-a-daraja-developer-account).
 
 ### 2. Get Your Credentials
 
@@ -221,7 +227,7 @@ const isValid = await client.callTool('mpesa_verify_webhook', {
 
 ## Test Credentials
 
-Use these for sandbox testing:
+Use these for sandbox testing. For detailed testing instructions, see the [Sandbox Setup Guide](./mpesa-sandbox-setup.md#step-5-sandbox-test-credentials).
 
 ```bash
 # Sandbox Test Credentials
@@ -252,6 +258,7 @@ MPESA_SHORTCODE=174379
 
 ## See Also
 
+- [M-Pesa Sandbox Setup Guide](./mpesa-sandbox-setup.md) - Detailed guide for obtaining sandbox credentials
 - [Configuration](../configuration.md)
 - [Webhooks](../webhooks.md)
 - [API Reference](../api/reference.md)
