@@ -162,6 +162,15 @@ describe('WaveAdapter', () => {
     });
 
     it('should handle missing recipient phone', async () => {
+      // Mock authentication first
+      mockPost.mockResolvedValueOnce({
+        data: {
+          access_token: 'mock_token',
+          token_type: 'Bearer',
+          expires_in: 3600,
+        },
+      });
+
       const paramsWithoutPhone: SendMoneyParams = {
         ...sendMoneyParams,
         recipient: {
@@ -369,7 +378,7 @@ describe('WaveAdapter', () => {
         },
       });
       
-      // Mock refund
+      // Mock refund - Wave returns 'succeeded' status
       mockPost.mockResolvedValueOnce({
         data: {
           id: 'wave_ref_001',
@@ -387,6 +396,7 @@ describe('WaveAdapter', () => {
       
       expect(result).toBeDefined();
       expect(result.provider).toBe('wave');
+      // Wave adapter maps 'succeeded' to 'refunded' for refunds
       expect(result.status).toBe('refunded');
       expect(result.amount.amount).toBe(10000);
     });

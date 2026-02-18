@@ -5,7 +5,7 @@
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { URL } from 'url';
-import { ILogger, StructuredLogger, getGlobalLogger } from '../utils/structured-logger.js';
+import { ILogger, getGlobalLogger, StructuredLogger } from '../utils/structured-logger.js';
 import { MetricsCollector, getGlobalMetrics } from '../utils/metrics.js';
 import { CircuitBreakerRegistry, getGlobalCircuitBreakerRegistry } from '../utils/circuit-breaker.js';
 import { IdempotencyStore, getGlobalIdempotencyStore } from '../utils/idempotency.js';
@@ -244,7 +244,7 @@ export class WebhookServer {
     this.metrics.incrementConnections();
 
     // Create child logger with correlation ID
-    const logger = this.logger.child({ correlationId, requestId });
+    const logger = this.logger.child ? this.logger.child({ correlationId, requestId }) : this.logger;
     
     try {
       // Parse URL
@@ -348,7 +348,7 @@ export class WebhookServer {
     requestId: string,
     startTime: number,
     correlationId: string,
-    logger: StructuredLogger
+    logger: ILogger
   ): Promise<void> {
     const provider = 'mpesa';
     
@@ -417,7 +417,7 @@ export class WebhookServer {
     requestId: string,
     startTime: number,
     correlationId: string,
-    logger: StructuredLogger
+    logger: ILogger
   ): Promise<void> {
     const provider = 'paystack';
     
@@ -492,7 +492,7 @@ export class WebhookServer {
     requestId: string,
     startTime: number,
     correlationId: string,
-    logger: StructuredLogger
+    logger: ILogger
   ): Promise<void> {
     const provider = 'mtn-momo';
     
@@ -561,7 +561,7 @@ export class WebhookServer {
     requestId: string,
     startTime: number,
     correlationId: string,
-    logger: StructuredLogger
+    logger: ILogger
   ): Promise<void> {
     const provider = 'intasend';
     

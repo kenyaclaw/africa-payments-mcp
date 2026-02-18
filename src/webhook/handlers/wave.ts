@@ -10,7 +10,7 @@ import {
   Customer,
   PhoneNumber 
 } from '../../types/index.js';
-import { StructuredLogger } from '../../utils/structured-logger.js';
+import { ILogger } from '../../utils/structured-logger.js';
 import { 
   PaymentEventEmitter, 
   PaymentEventData,
@@ -97,13 +97,13 @@ export interface WaveRefundData {
 // ==================== Handler Class ====================
 
 export class WaveWebhookHandler {
-  private logger: StructuredLogger;
+  private logger: ILogger;
   private eventEmitter: PaymentEventEmitter;
   private verifier: WebhookVerifier;
   private apiSecret?: string;
 
   constructor(
-    logger: StructuredLogger,
+    logger: ILogger,
     eventEmitter: PaymentEventEmitter,
     verifier: WebhookVerifier,
     apiSecret?: string

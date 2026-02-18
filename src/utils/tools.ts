@@ -6,6 +6,7 @@ import { ProviderRegistry } from './registry.js';
 import { Logger } from './logger.js';
 import { ProviderSelector, ProviderScore } from './provider-selector.js';
 import { SimulationMode, getSimulationMode } from './simulation.js';
+import { PreferencesManager, getPreferencesManager } from './preferences.js';
 import { 
   ToolDefinition, 
   ToolResult, 
@@ -21,6 +22,7 @@ import {
 export class ToolManager {
   private providerSelector: ProviderSelector;
   private simulationMode: SimulationMode;
+  private preferences: PreferencesManager;
 
   constructor(
     private registry: ProviderRegistry,
@@ -28,6 +30,9 @@ export class ToolManager {
   ) {
     this.providerSelector = new ProviderSelector(registry, logger);
     this.simulationMode = getSimulationMode(logger);
+    this.preferences = getPreferencesManager();
+    // Load preferences asynchronously
+    this.preferences.load().catch(() => {});
   }
 
   getAllTools(): ToolDefinition[] {
@@ -56,6 +61,7 @@ export class ToolManager {
       this.listProvidersTool(),
       this.getProviderInfoTool(),
       this.compareProvidersTool(),
+      this.getPreferencesTool(),
     ];
   }
 
@@ -104,6 +110,8 @@ export class ToolManager {
         return this.executeGetProviderInfo(args);
       case 'compare_providers':
         return this.executeCompareProviders(args);
+      case 'get_preferences':
+        return this.executeGetPreferences(args);
       
       default:
         throw new PaymentError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_ERROR);
@@ -186,8 +194,20 @@ export class ToolManager {
       
       this.logger.info(`Smart selection chose ${selectedProvider}: ${selectionReason}`);
     } else {
-      // Auto-select provider if not specified
-      selectedProvider = provider || this.selectProviderForCountry(detectedCountry, 'send');
+      // Check preferences for suggested provider
+      const suggested = !provider ? this.preferences.getSuggestedProvider(
+        detectedCountry,
+        this.registry.getProviderNames()
+      ) : null;
+      
+      if (suggested) {
+        selectedProvider = suggested.provider;
+        selectionReason = suggested.reason;
+        this.logger.info(`Preference suggestion: ${selectedProvider} (${selectionReason})`);
+      } else {
+        // Auto-select provider if not specified
+        selectedProvider = provider || this.selectProviderForCountry(detectedCountry, 'send');
+      }
     }
     
     const providerInstance = this.registry.getProvider(selectedProvider);
@@ -234,11 +254,21 @@ export class ToolManager {
 
     const transaction = await providerInstance.sendMoney(params);
 
+    // Save preferences after successful transaction
+    await this.preferences.setLastUsedProvider(selectedProvider);
+    await this.preferences.addRecentRecipient({
+      phone: recipient_phone,
+      name: recipient_name,
+      country: detectedCountry,
+      provider: selectedProvider,
+    });
+    await this.preferences.updateProviderStats(selectedProvider, amount);
+
     // Format response with smart selection info if applicable
     let responseText = this.formatTransactionResponse(transaction, 'Send Money');
     
-    if (provider === 'auto' && selectionReason) {
-      responseText += `\n\n🤖 Smart Selection: ${selectedProvider}\n`;
+    if ((provider === 'auto' || !provider) && selectionReason) {
+      responseText += `\n\n🤖 Provider Selection: ${selectedProvider}\n`;
       responseText += `   Why: ${selectionReason}\n`;
       
       // Add comparison if there are multiple providers
@@ -1062,6 +1092,48 @@ export class ToolManager {
         {
           type: 'text',
           text: comparisonText,
+        },
+      ],
+    };
+  }
+
+  private getPreferencesTool(): ToolDefinition {
+    return {
+      name: 'get_preferences',
+      description: 'View your payment preferences including last used provider, recent recipients, and usage statistics.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          clear: {
+            type: 'boolean',
+            description: 'Clear all preferences (optional)',
+          },
+        },
+      },
+    };
+  }
+
+  private async executeGetPreferences(args: Record<string, any>): Promise<ToolResult> {
+    if (args.clear) {
+      await this.preferences.clear();
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '✅ All preferences have been cleared.',
+          },
+        ],
+      };
+    }
+
+    await this.preferences.load();
+    const text = this.preferences.formatPreferences();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: text || '\n👤 No preferences stored yet.\n\nSend your first payment to start building preferences.\n',
         },
       ],
     };

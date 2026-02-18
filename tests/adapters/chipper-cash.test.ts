@@ -186,8 +186,11 @@ describe('ChipperCashAdapter', () => {
         },
       });
       
-      // Mock user lookup - user not found
-      mockGet.mockRejectedValueOnce(new Error('User not found'));
+      // Mock user lookup - user not found (returns 404)
+      mockGet.mockResolvedValueOnce({
+        data: null,
+        status: 404,
+      });
 
       await expect(adapter.sendMoney(sendMoneyParams)).rejects.toThrow('Recipient not found');
     });
@@ -363,7 +366,7 @@ describe('ChipperCashAdapter', () => {
         },
       });
       
-      // Mock refund
+      // Mock refund - Chipper Cash returns 'completed' status
       mockPost.mockResolvedValueOnce({
         data: {
           id: 'ref_001',
@@ -380,6 +383,7 @@ describe('ChipperCashAdapter', () => {
       
       expect(result).toBeDefined();
       expect(result.provider).toBe('chipper_cash');
+      // Chipper Cash adapter maps 'completed' to 'refunded' for refunds
       expect(result.status).toBe('refunded');
     });
   });

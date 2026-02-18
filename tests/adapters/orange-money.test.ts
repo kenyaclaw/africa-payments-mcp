@@ -151,6 +151,15 @@ describe('OrangeMoneyAdapter', () => {
     });
 
     it('should handle missing recipient phone', async () => {
+      // Mock authentication first
+      mockPost.mockResolvedValueOnce({
+        data: {
+          access_token: 'mock_token',
+          token_type: 'Bearer',
+          expires_in: 3600,
+        },
+      });
+
       const paramsWithoutPhone: SendMoneyParams = {
         ...sendMoneyParams,
         recipient: {
@@ -247,6 +256,15 @@ describe('OrangeMoneyAdapter', () => {
     });
 
     it('should handle missing customer phone', async () => {
+      // Mock authentication first
+      mockPost.mockResolvedValueOnce({
+        data: {
+          access_token: 'mock_token',
+          token_type: 'Bearer',
+          expires_in: 3600,
+        },
+      });
+
       const paramsWithoutPhone: RequestPaymentParams = {
         ...requestParams,
         customer: {
@@ -255,7 +273,7 @@ describe('OrangeMoneyAdapter', () => {
         },
       };
 
-      await expect(adapter.requestPayment(paramsWithoutPhone)).rejects.toThrow('Phone number is required');
+      await expect(adapter.requestPayment(paramsWithoutPhone)).rejects.toThrow('Customer phone number is required');
     });
   });
 
