@@ -178,18 +178,18 @@ export class EncryptionManager {
       return obj;
     }
 
-    const encrypted = { ...obj };
+    const encrypted: Record<string, any> = { ...obj };
 
     for (const field of sensitiveFields) {
       if (encrypted[field] && typeof encrypted[field] === 'string') {
         const encryptedValue = this.encrypt(encrypted[field]);
         if (encryptedValue) {
-          encrypted[field] = `enc:${JSON.stringify(encryptedValue)}` as any;
+          encrypted[field] = `enc:${JSON.stringify(encryptedValue)}`;
         }
       }
     }
 
-    return encrypted;
+    return encrypted as T;
   }
 
   /**
@@ -203,7 +203,7 @@ export class EncryptionManager {
       return obj;
     }
 
-    const decrypted = { ...obj };
+    const decrypted: Record<string, any> = { ...obj };
 
     for (const field of encryptedFields) {
       const value = decrypted[field];
@@ -212,7 +212,7 @@ export class EncryptionManager {
           const encryptedData: EncryptedData = JSON.parse(value.slice(4));
           const decryptedValue = this.decrypt(encryptedData);
           if (decryptedValue) {
-            decrypted[field] = decryptedValue as any;
+            decrypted[field] = decryptedValue;
           }
         } catch {
           // If decryption fails, keep original value
@@ -220,7 +220,7 @@ export class EncryptionManager {
       }
     }
 
-    return decrypted;
+    return decrypted as T;
   }
 
   /**

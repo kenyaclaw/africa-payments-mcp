@@ -325,7 +325,7 @@ export class ComplianceManager {
       return data;
     }
 
-    const redacted = { ...data };
+    const redacted: Record<string, any> = { ...data };
     const fieldsToRedact = this.config.pii?.fieldsToRedact || [];
     const partialRedaction = this.config.pii?.partialRedaction !== false;
 
@@ -333,7 +333,7 @@ export class ComplianceManager {
       if (field in redacted) {
         const value = redacted[field];
         if (typeof value === 'string') {
-          redacted[field] = this.redactValue(value, partialRedaction) as any;
+          redacted[field] = this.redactValue(value, partialRedaction);
         }
       }
     }
@@ -345,14 +345,14 @@ export class ComplianceManager {
       }
     }
 
-    return redacted;
+    return redacted as T;
   }
 
   /**
    * Anonymize data (irreversible)
    */
   anonymize<T extends Record<string, any>>(data: T): T {
-    const anonymized = { ...data };
+    const anonymized: Record<string, any> = { ...data };
 
     // Hash identifiable fields
     const identifiableFields = ['userId', 'customerId', 'email', 'phone', 'name'];
@@ -362,11 +362,11 @@ export class ComplianceManager {
         anonymized[field] = createHash('sha256')
           .update(anonymized[field])
           .digest('hex')
-          .slice(0, 16) as any;
+          .slice(0, 16);
       }
     }
 
-    return anonymized;
+    return anonymized as T;
   }
 
   /**

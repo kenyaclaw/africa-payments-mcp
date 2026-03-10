@@ -26,7 +26,7 @@ export interface ILogger {
   debug(message: string, meta?: Record<string, any>): void;
   info(message: string, meta?: Record<string, any>): void;
   warn(message: string, meta?: Record<string, any>): void;
-  error(message: string, error?: Error, meta?: Record<string, any>): void;
+  error(message: string, error?: Error | Record<string, any>, meta?: Record<string, any>): void;
   child?(context: LogContext): ILogger;
 }
 
@@ -148,15 +148,19 @@ export class StructuredLogger implements ILogger {
     this.log('warn', message, meta);
   }
 
-  error(message: string, error?: Error, meta?: Record<string, any>): void {
+  error(message: string, error?: Error | Record<string, any>, meta?: Record<string, any>): void {
     const errorMeta: Record<string, any> = { ...meta };
     
     if (error) {
-      errorMeta.error = {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-      };
+      if (error instanceof Error) {
+        errorMeta.error = {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+        };
+      } else {
+        Object.assign(errorMeta, error);
+      }
     }
     
     this.log('error', message, errorMeta);

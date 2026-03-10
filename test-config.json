@@ -1,0 +1,1 @@
+{"server":{"port":3000},"providers":{"mpesa":{"enabled":true,"environment":"sandbox"},"paystack":{"enabled":true,"environment":"sandbox"}}}

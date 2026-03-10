@@ -89,6 +89,7 @@ export interface TrendAnalysis {
   slope: number;
   forecast: number[];
   anomalyScore: number;
+  confidence: number;
 }
 
 export interface PredictorStats {
@@ -306,7 +307,7 @@ export class PredictiveMaintenance extends EventEmitter {
     
     if (trend === 'increasing' && (current > adjustedThreshold * 0.5 || forecast[0] > adjustedThreshold)) {
       // Confidence calculation for trend analysis
-    const _confidence = Math.min(1, (current / adjustedThreshold) * 0.5 + Math.abs(slope) * 10 + anomalyScore * 0.3);
+    const confidence = Math.min(1, (current / adjustedThreshold) * 0.5 + Math.abs(slope) * 10 + anomalyScore * 0.3);
       
       return {
         provider,
@@ -317,6 +318,7 @@ export class PredictiveMaintenance extends EventEmitter {
         slope,
         forecast,
         anomalyScore,
+        confidence,
       };
     }
     
@@ -360,6 +362,7 @@ export class PredictiveMaintenance extends EventEmitter {
         slope,
         forecast,
         anomalyScore,
+        confidence,
       };
     }
     
@@ -379,6 +382,7 @@ export class PredictiveMaintenance extends EventEmitter {
     if (errorSpikes.length > 0 || latencySpikes.length > 0) {
       const current = recent[recent.length - 1];
       const anomalyScore = (errorSpikes.length + latencySpikes.length) / recent.length;
+      const confidence = Math.min(1, anomalyScore * 2 + 0.3);
       
       return {
         provider,
@@ -389,6 +393,7 @@ export class PredictiveMaintenance extends EventEmitter {
         slope: anomalyScore,
         forecast: [anomalyScore * 1.2, anomalyScore * 1.4],
         anomalyScore,
+        confidence,
       };
     }
     
@@ -411,6 +416,7 @@ export class PredictiveMaintenance extends EventEmitter {
     const stateChanges = this.countStateChanges(data.map(d => d.circuitBreakerState));
     
     if (stateChanges > 2) {
+      const confidence = Math.min(1, stateChanges / 5 + 0.4);
       return {
         provider,
         metric: 'circuit_breaker_flapping',
@@ -420,6 +426,7 @@ export class PredictiveMaintenance extends EventEmitter {
         slope: stateChanges,
         forecast: [stateChanges + 1],
         anomalyScore: stateChanges / 10,
+        confidence,
       };
     }
     

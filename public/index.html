@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Africa Payments MCP - Mission Control</title>
+  <style>
+    :root {
+      --primary: #1e40af;
+      --primary-light: #3b82f6;
+      --primary-dark: #1e3a8a;
+      --accent: #00d4ff;
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --border: #475569;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      border-bottom: 3px solid var(--accent);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 30px rgba(0, 212, 255, 0.2);
+    }
+
+    .logo { display: flex; align-items: center; gap: 1rem; }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--primary-light) 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .logo-text h1 {
+      font-size: 1.25rem;
+      color: var(--text-primary);
+    }
+
+    .logo-text span {
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(16, 185, 129, 0.2);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--success);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--success); }
+      50% { opacity: 0.6; box-shadow: 0 0 5px var(--success); }
+    }
+
+    .main { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary-light);
+    }
+
+    .metric {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .metric-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+
+    .chart-container {
+      height: 120px;
+      margin-top: 1rem;
+      position: relative;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      height: 100%;
+      gap: 8px;
+    }
+
+    .bar {
+      flex: 1;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--primary) 100%);
+      border-radius: 4px 4px 0 0;
+      min-height: 10px;
+      transition: height 0.5s ease;
+    }
+
+    .payment-list { margin-top: 1rem; }
+
+    .payment-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .payment-method {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .method-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--bg-card);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+    }
+
+    .method-name { font-weight: 500; }
+    .method-name span { display: block; font-size: 0.75rem; color: var(--text-secondary); }
+
+    .progress-bar {
+      height: 8px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+      border-radius: 4px;
+      transition: width 1s ease;
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .service-item {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .service-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 0.75rem;
+      background: var(--bg-card);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .service-name { font-weight: 600; margin-bottom: 0.25rem; }
+    .service-status { font-size: 0.75rem; color: var(--success); }
+
+    .alert {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .alert-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--success);
+    }
+
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">💳</div>
+      <div class="logo-text">
+        <h1>Africa Payments MCP</h1>
+        <span>Mission Control Dashboard</span>
+      </div>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span>All Systems Operational</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="alert">
+      <svg class="alert-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span>Payment gateway operating normally - 99.97% uptime this month</span>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Total Transactions</span>
+          <div class="card-icon">📊</div>
+        </div>
+        <div class="metric" id="total-transactions">12,847</div>
+        <div class="metric-label">Last 24 hours</div>
+        <div class="chart-container">
+          <div class="bar-chart" id="transactions-chart"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Revenue Processed</span>
+          <div class="card-icon">💰</div>
+        </div>
+        <div class="metric" id="revenue">KES 2.4M</div>
+        <div class="metric-label">Today's volume</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 78%"></div>
+        </div>
+        <div class="metric-label">78% of daily target</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Success Rate</span>
+          <div class="card-icon">✅</div>
+        </div>
+        <div class="metric">99.2%</div>
+        <div class="metric-label">Transaction success rate</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 99.2%"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Payment Methods</span>
+          <div class="card-icon">🌐</div>
+        </div>
+        <div class="payment-list">
+          <div class="payment-item">
+            <div class="payment-method">
+              <div class="method-icon">📱</div>
+              <div class="method-name">M-Pesa<span>Mobile Money</span></div>
+            </div>
+            <span>67%</span>
+          </div>
+          <div class="payment-item">
+            <div class="payment-method">
+              <div class="method-icon">💳</div>
+              <div class="method-name">Cards<span>Visa/Mastercard</span></div>
+            </div>
+            <span>23%</span>
+          </div>
+          <div class="payment-item">
+            <div class="payment-method">
+              <div class="method-icon">🏦</div>
+              <div class="method-name">Bank<span>Transfer</span></div>
+            </div>
+            <span>10%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">MCP Tools Active</span>
+          <div class="card-icon">🔧</div>
+        </div>
+        <div class="metric">8</div>
+        <div class="metric-label">Payment processing tools</div>
+        <div class="services-grid">
+          <div class="service-item">
+            <div class="service-icon">💵</div>
+            <div class="service-name">Paystack</div>
+            <div class="service-status">● Active</div>
+          </div>
+          <div class="service-item">
+            <div class="service-icon">📱</div>
+            <div class="service-name">M-Pesa</div>
+            <div class="service-status">● Active</div>
+          </div>
+          <div class="service-item">
+            <div class="service-icon">🔄</div>
+            <div class="service-name">Refunds</div>
+            <div class="service-status">● Active</div>
+          </div>
+          <div class="service-item">
+            <div class="service-icon">📋</div>
+            <div class="service-name">Verify</div>
+            <div class="service-status">● Active</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Response Time</span>
+          <div class="card-icon">⚡</div>
+        </div>
+        <div class="metric">124ms</div>
+        <div class="metric-label">Average API response</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 15%"></div>
+        </div>
+        <div class="metric-label">Excellent performance</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    Africa Payments MCP v0.1.0 | Port 7003 | Blue Theme | Powered by KenyaClaw
+  </footer>
+
+  <script>
+    function generateBarChart() {
+      const chart = document.getElementById('transactions-chart');
+      const hours = 24;
+      for (let i = 0; i < hours; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = Math.random() * 80 + 20 + '%';
+        chart.appendChild(bar);
+      }
+    }
+
+    function updateMetrics() {
+      const transactions = document.getElementById('total-transactions');
+      const revenue = document.getElementById('revenue');
+      const baseTrans = 12847;
+      const baseRevenue = 2.4;
+      
+      setInterval(() => {
+        const newTrans = baseTrans + Math.floor(Math.random() * 50);
+        transactions.textContent = newTrans.toLocaleString();
+        
+        const newRevenue = (baseRevenue + Math.random() * 0.1).toFixed(1);
+        revenue.textContent = `KES ${newRevenue}M`;
+      }, 3000);
+    }
+
+    generateBarChart();
+    updateMetrics();
+  </script>
+</body>
+</html>

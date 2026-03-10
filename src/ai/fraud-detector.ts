@@ -594,7 +594,7 @@ export class FraudDetector {
     });
 
     model.compile({
-      optimizer: tf.train.adam(0.001),
+      optimizer: tf.train.adam({ learningRate: 0.001 }),
       loss: 'binaryCrossentropy',
       metrics: ['accuracy'],
     });

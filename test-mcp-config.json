@@ -1,0 +1,25 @@
+{
+  "server": {
+    "port": 3000,
+    "logLevel": "info"
+  },
+  "providers": {
+    "mpesa": {
+      "enabled": true,
+      "environment": "sandbox",
+      "consumerKey": "test_key",
+      "consumerSecret": "test_secret",
+      "passkey": "test_passkey",
+      "shortCode": "174379"
+    },
+    "paystack": {
+      "enabled": true,
+      "environment": "sandbox",
+      "secretKey": "sk_test_test"
+    }
+  },
+  "defaults": {
+    "currency": "KES",
+    "country": "KE"
+  }
+}

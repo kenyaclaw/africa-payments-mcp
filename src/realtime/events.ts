@@ -288,14 +288,12 @@ interface KafkaClient {
   producer(config?: unknown): KafkaProducer;
   consumer(config: unknown): KafkaConsumer;
   admin(): KafkaAdmin;
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
 }
 
 interface KafkaProducer {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
-  send(config: { topic: string; messages: { key?: string; value: string; headers?: Record<string, string> }[] }): Promise<void>;
+  send(config: { topic: string; messages: { key?: string; value: string; headers?: Record<string, string> }[] }): Promise<unknown>;
 }
 
 interface KafkaConsumer {
@@ -339,9 +337,13 @@ class KafkaEventClient implements IEventStreamingClient {
         clientId: this.config.clientId || 'africa-payments-mcp',
         brokers: this.config.brokers,
         ssl: this.config.ssl,
-        sasl: this.config.sasl,
+        sasl: this.config.sasl ? {
+          mechanism: this.config.sasl.mechanism,
+          username: this.config.sasl.username,
+          password: this.config.sasl.password,
+        } as any : undefined,
         logLevel: (await import('kafkajs')).logLevel.WARN,
-      });
+      }) as unknown as KafkaClient;
 
       this.producer = this.kafka.producer({
         createPartitioner: (await import('kafkajs')).Partitioners.DefaultPartitioner,
@@ -583,7 +585,7 @@ class KafkaEventClient implements IEventStreamingClient {
         value: message.value?.toString() || '',
         headers: {
           ...message.headers,
-          'retry-count': Buffer.from(String(retryCount)),
+          'retry-count': Buffer.from(String(retryCount)).toString('utf8') as any,
         },
       }],
     });
@@ -598,8 +600,8 @@ class KafkaEventClient implements IEventStreamingClient {
         value: message.value?.toString() || '',
         headers: {
           ...message.headers,
-          'error-message': Buffer.from(error.message),
-          'error-timestamp': Buffer.from(new Date().toISOString()),
+          'error-message': error.message as any,
+          'error-timestamp': new Date().toISOString() as any,
         },
       }],
     });
@@ -615,6 +617,7 @@ interface AmqpModule {
 interface AmqpConnection {
   createChannel(): Promise<AmqpChannel>;
   close(): Promise<void>;
+  on?(event: string, handler: (err: Error) => void): void;
 }
 
 interface AmqpChannel {
@@ -628,6 +631,7 @@ interface AmqpChannel {
   ack(message: AmqpMessage): void;
   nack(message: AmqpMessage, allUpTo?: boolean, requeue?: boolean): void;
   close(): Promise<void>;
+  cancel(consumerTag: string): Promise<void>;
 }
 
 interface AmqpMessage {
@@ -667,7 +671,7 @@ class RabbitMQEventClient implements IEventStreamingClient {
       
       this.connection = await amqp.connect(this.config.url, {
         heartbeat: this.config.heartbeat || 60,
-      });
+      }) as unknown as AmqpConnection;
 
       this.channel = await this.connection.createChannel();
       

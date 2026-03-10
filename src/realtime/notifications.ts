@@ -309,7 +309,7 @@ interface FCMDeviceResponse {
 }
 
 class FCMProvider {
-  private app: FCMApp | null = null;
+  private app: any = null;
   private config: FCMConfig;
   private logger: ILogger;
   private deviceTokens: Map<string, Set<string>> = new Map(); // userId -> tokens
@@ -409,7 +409,7 @@ class FCMProvider {
       }
 
       // Remove invalid tokens
-      response.responses.forEach((resp, index) => {
+      (response as FCMMulticastResponse).responses?.forEach((resp, index) => {
         if (!resp.success && this.isInvalidTokenError(resp.error)) {
           this.unregisterDevice(recipient.userId, tokens[index]);
         }
@@ -553,7 +553,7 @@ class OneSignalProvider {
         throw new Error(`OneSignal API error: ${error}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as { recipients?: number };
 
       return {
         success: true,

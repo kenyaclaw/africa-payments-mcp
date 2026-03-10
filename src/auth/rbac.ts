@@ -57,7 +57,7 @@ export interface RBACUser {
 
 export interface RBACConfig {
   enabled: boolean;
-  defaultRoles?: Record<Role, Permission[]>;
+  defaultRoles?: Record<Exclude<Role, 'custom'>, Permission[]>;
   allowCustomRoles?: boolean;
   superAdminRole?: string;
 }
